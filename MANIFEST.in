@@ -4,7 +4,7 @@ include bin/l4d2
 recursive-include .github *.yml *.md
 recursive-include src *.py *.in *.json LICENSE
 recursive-include tests *.py
-recursive-include scripts *.py *.md *.json *.txt *.spec
+recursive-include scripts *.py *.md *.json *.txt *.spec *.in
 recursive-include docs *.md *.json
 prune docs/test-results
 prune .local-docs

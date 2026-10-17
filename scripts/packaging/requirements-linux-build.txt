@@ -1,6 +1,6 @@
 # Build tools only; no new CLI runtime dependency.
-pyinstaller==6.22.3
-pyinstaller-hooks-contrib==2026.8
-altgraph==0.17.5
-packaging==26.3
-setuptools==80.9.0
+pyinstaller==6.22.3 --hash=sha256:451a4ae14b719365bf1a2f0a99dae7b3463060061c3a394c70d5264cfb439528
+pyinstaller-hooks-contrib==2026.8 --hash=sha256:6d21d65323ea4467753afc21f52d7d0e69416ae8101dd88269bf273ad48db084
+altgraph==0.17.5 --hash=sha256:f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597
+packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+setuptools==80.9.0 --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922

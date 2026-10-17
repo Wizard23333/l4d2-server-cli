@@ -9,12 +9,14 @@ import os
 from pathlib import Path
 import platform
 import re
+import runpy
 import shutil
 import subprocess
 import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
+RELEASE = runpy.run_path(str(ROOT / "scripts/packaging/release_metadata.py"))
 
 
 def sha256(path):
@@ -54,7 +56,7 @@ def validate_bundle(bundle):
     entries = []
     for path in sorted(bundle.rglob("*")):
         relative = path.relative_to(bundle)
-        if set(relative.parts) & {"test-results", ".git", ".workbuddy", "steamcmd", "serverfiles"}:
+        if set(relative.parts) & {"test-results", ".local-docs", ".git", ".workbuddy", "steamcmd", "serverfiles"}:
             raise ValueError("Private or game content in bundle: " + relative.as_posix())
         if path.is_symlink():
             target = Path(os.readlink(path))
@@ -76,7 +78,8 @@ def main():
     parser.add_argument("--runtime-archive", required=True, type=Path)
     parser.add_argument("--runtime-licenses", required=True, type=Path,
                         help="Unmodified LICENSE*.txt files from the pinned runtime source tag")
-    parser.add_argument("--output", type=Path, default=ROOT / "dist/v0.1.0-alpha.1")
+    parser.add_argument("--tag", help="Preview tag; must match both project version declarations")
+    parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--work", type=Path, default=ROOT / "build/native-linux")
     args = parser.parse_args()
     expected = json.loads((ROOT / "scripts/packaging/runtime.json").read_text())
@@ -89,15 +92,15 @@ def main():
     tools = {}
     for line in (ROOT / "scripts/packaging/requirements-linux-build.txt").read_text().splitlines():
         if "==" in line:
-            name, version = line.split("==")
+            name, version = line.split("==", 1)
+            version = version.split()[0]
             tools[name] = importlib.metadata.version(name)
             if tools[name] != version:
                 parser.error("Build tool version differs: " + name)
-    namespace = {}
-    exec((ROOT / "src/l4d2_cli/__init__.py").read_text(), namespace)
-    version = namespace["__version__"]
-    tag = "v0.1.0-alpha.1" if version == "0.1.0a1" else "v" + version
-    name = "l4d2-server-cli-" + tag + "-linux-x86_64"
+    version = RELEASE["project_version"](ROOT)
+    tag = args.tag or RELEASE["preview_tag"](version)
+    RELEASE["validate_tag"](tag, ROOT)
+    name = RELEASE["basename"](tag)
     output, work = args.output.resolve(), args.work.resolve()
     archive_path = output / (name + ".tar.gz")
     if work.exists() or archive_path.exists():
@@ -119,7 +122,10 @@ def main():
         raise ValueError("Service template missing or changed in bundle")
     for public_name in ["LICENSE", "THIRD_PARTY_NOTICES.md"]:
         shutil.copyfile(ROOT / public_name, bundle / public_name)
-    shutil.copyfile(ROOT / "docs/executable-package.md", bundle / "INSTALL.md")
+    guide = (ROOT / "scripts/packaging/INSTALL.md.in").read_text(encoding="utf-8")
+    guide = guide.replace("@TAG@", tag).replace("@PYTHON_VERSION@", expected["python_version"])
+    guide = guide.replace("@REPOSITORY@", os.environ.get("GITHUB_REPOSITORY", "Wizard23333/l4d2-server-cli"))
+    (bundle / "INSTALL.md").write_text(guide, encoding="utf-8")
     license_dir = bundle / "licenses/python-runtime"
     license_dir.mkdir(parents=True)
     for path in sorted(args.runtime_licenses.glob("LICENSE*")):
@@ -142,7 +148,7 @@ def main():
     highest = max(glibc_versions, key=lambda item: tuple(map(int, item.split("."))))
     if tuple(map(int, highest.split("."))) > (2, 31):
         raise ValueError("Bundle exceeds glibc 2.31 baseline: " + highest)
-    info = {"format": "l4d2-cli-linux-directory-v1", "version": version, "architecture": "x86_64",
+    info = {"format": "l4d2-cli-linux-directory-v1", "version": version, "tag": tag, "architecture": "x86_64",
             "python": platform.python_version(), "runtime": expected, "build_tools": tools,
             "glibc_baseline": "2.31", "highest_required_glibc_symbol": highest,
             "source_files": source_inventory(ROOT),

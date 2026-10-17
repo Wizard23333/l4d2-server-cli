@@ -1,0 +1,27 @@
+# L4D2 Server CLI @TAG@
+
+Linux x86_64 directory bundle; includes CPython @PYTHON_VERSION@. No system Python, venv or pip is required. The host needs glibc 2.31+; game management also needs running systemd and the game's 32-bit dependencies.
+
+Download the matching archive and checksum from:
+https://github.com/@REPOSITORY@/releases/tag/@TAG@
+
+```bash
+sha256sum -c l4d2-server-cli-@TAG@-linux-x86_64.sha256
+tar -xzf l4d2-server-cli-@TAG@-linux-x86_64.tar.gz
+cd l4d2-server-cli-@TAG@-linux-x86_64
+./l4d2 --version
+./l4d2 --help
+./l4d2 network check
+sudo ./l4d2 server install --dir /opt/l4d2
+sudo ./l4d2 server configure --name "My L4D2 Server" --visibility public
+sudo ./l4d2 server start
+```
+
+Keep the entire directory, including _internal/. Do not copy only the l4d2 executable. Run `./l4d2 auth login` as an ordinary user if account authentication is needed; do not use sudo for login.
+
+The CLI does not open firewalls or cloud security groups. Allow the game UDP port and verify joining from an external client. SteamCMD, game files, account caches, server configuration and test reports are not included.
+
+Installation and known limitations:
+https://github.com/@REPOSITORY@/blob/@TAG@/README.md
+
+Runtime provenance and library requirements are in build-info.json; FILES.sha256 verifies unpacked regular files. Third-party license texts are in licenses/. This is a preview; a CLI build check does not certify full game installation, all distributions or gameplay.
