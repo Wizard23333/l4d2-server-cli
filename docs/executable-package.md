@@ -1,6 +1,6 @@
 # Linux x86_64 可执行包
 
-首个候选包：`l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz`。目前仅本地验收，尚未发布到GitHub。
+版本：`v0.1.0-alpha.1`。从 [预览版Release](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.1) 下载 [Linux x86_64可执行包](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz) 和 [SHA256校验文件](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256)。
 
 包内有 `l4d2`、`_internal/`、许可证及构建来源，内置CPython3.12运行时，不需要安装系统Python、venv或pip。请保留整个目录，不能只复制 `l4d2` 文件。CLI与游戏系统依赖分别安装。
 
@@ -9,6 +9,8 @@
 将可执行包与同名 `.sha256` 文件放在同一目录：
 
 ```bash
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
 sha256sum -c l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
 tar -xzf l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
 cd l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64

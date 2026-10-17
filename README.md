@@ -17,9 +17,16 @@ CLI 在目标 Linux 主机执行。Windows 可编辑源码和查看帮助；详�
 
 ### Linux x86_64 可执行包（推荐）
 
-不需要系统Python、venv或pip。取得以下两个同版本文件并放在同一目录；当前候选仅在本地提供，尚未发布GitHub Release：
+不需要系统Python、venv或pip。从 [v0.1.0-alpha.1 预览版 Release](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.1) 下载两个同版本附件，放在同一目录：
+
+- [Linux x86_64可执行包（tar.gz）](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz)
+- [SHA256校验文件](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256)
+
+也可以直接下载并验证：
 
 ```bash
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
 sha256sum -c l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
 tar -xzf l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
 cd l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64
