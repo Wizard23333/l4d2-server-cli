@@ -1,0 +1,32 @@
+name: Bug report / 问题反馈
+description: 报告安装、配置或生命周期问题
+body:
+  - type: markdown
+    attributes:
+      value: 请先移除账号、密码、Steam/Guard token、RCON、SSH 密钥和代理凭据。安全漏洞请按 SECURITY.md 私下报告。
+  - type: input
+    id: version
+    attributes:
+      label: CLI version
+      description: l4d2 --version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Linux 发行版/版本、架构、Python、systemd；安装来源和是否使用代理（不含地址凭据）。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction / 复现步骤
+      description: 使用占位符替换私人信息，写出预期与实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized error / diagnostics
+      description: 错误码、脱敏 doctor/status/日志；不要粘贴私有配置或登录缓存。

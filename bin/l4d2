@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Run a source checkout without fetching Python packages."""
+import sys
+from pathlib import Path
+
+if sys.version_info < (3, 8):
+    print("l4d2-server-cli requires Python 3.8 or newer. Select a compatible Python interpreter.", file=sys.stderr)
+    raise SystemExit(4)
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from l4d2_cli.cli import main
+
+raise SystemExit(main())

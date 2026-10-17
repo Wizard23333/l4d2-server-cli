@@ -1,0 +1,19 @@
+include README.md LICENSE THIRD_PARTY_NOTICES.md CHANGELOG.md CONTRIBUTING.md SECURITY.md
+include pyproject.toml .gitignore .gitattributes
+include bin/l4d2
+recursive-include .github *.yml *.md
+recursive-include src *.py *.in *.json LICENSE
+recursive-include tests *.py
+recursive-include scripts *.py *.md *.json *.txt *.spec
+recursive-include docs *.md *.json
+prune docs/test-results
+prune .local-docs
+prune .workbuddy
+prune .codex
+prune .agents
+prune .git
+prune .test-tmp
+prune .venv
+prune build
+prune dist
+global-exclude __pycache__ *.py[cod]

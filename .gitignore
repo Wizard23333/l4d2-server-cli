@@ -1,0 +1,48 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.tar.gz
+*.vpk
+*.deb
+*.log
+.env
+secrets.toml
+*.key
+*.pem
+*-password.txt
+/steamcmd/
+/serverfiles/
+/backups/
+.test-tmp/
+
+# Local assistant/editor state and release output
+.workbuddy/
+.codex/
+.agents/
+.idea/
+.vscode/
+.release-audit.json
+
+# Native credentials / private runtime profiles
+.env.*
+config.vdf
+loginusers.vdf
+account.config
+.DepotDownloader/
+IsolatedStorage/
+id_rsa
+id_ed25519
+id_ecdsa
+*.pfx
+*.p12
+
+# Local test execution reports (keep test cases and plans public)
+/docs/test-results/
+
+# Private development requirements, plans and acceptance checklists
+/.local-docs/

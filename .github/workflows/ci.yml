@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            python: '3.8'
+          - os: ubuntu-22.04
+            python: '3.12'
+          - os: windows-2022
+            python: '3.12'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Offline regressions (no Steam account or server mutation)
+        run: python -B -m unittest discover -s tests -v
+      - name: Public source checks
+        run: python -B scripts/check_release.py
+
+  package:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install build validation tools
+        run: python -m pip install build twine
+      - name: Build source and wheel
+        run: python -m build
+      - name: Check package metadata
+        run: python -m twine check --strict dist/*
+      - name: Check public source and distribution contents
+        shell: bash
+        run: |
+          python scripts/check_release.py --artifact dist/*.whl --artifact dist/*.tar.gz
+          python -m venv /tmp/l4d2-wheel-check
+          /tmp/l4d2-wheel-check/bin/python -m pip install --no-index --no-deps dist/*.whl
+          /tmp/l4d2-wheel-check/bin/l4d2 --version
+          /tmp/l4d2-wheel-check/bin/l4d2 server configure --help
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-distributions
+          path: dist/
+          retention-days: 7

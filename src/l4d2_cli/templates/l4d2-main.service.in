@@ -1,0 +1,28 @@
+# Managed by l4d2-server-cli. Do not edit without updating its configuration.
+[Unit]
+Description=Left 4 Dead 2 vanilla server (main)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=l4d2
+Group=l4d2
+WorkingDirectory=@DIRECTORY@
+ExecStart=@EXEC@
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+KillMode=control-group
+TimeoutStopSec=45
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=@WORKDIR@
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

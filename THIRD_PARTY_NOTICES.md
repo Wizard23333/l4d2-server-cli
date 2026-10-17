@@ -1,0 +1,29 @@
+# Third-party notices
+
+The CLI bundles the unmodified pure-Python sources of Tomli 2.0.1 for Python 3.8–3.10, under the MIT license.
+
+- Project: https://github.com/hukkin/tomli
+- Source tag: https://github.com/hukkin/tomli/tree/2.0.1
+- Copyright: (c) 2021 Taneli Hukkinen
+- License: src/l4d2_cli/_vendor/tomli/LICENSE
+- Original download URLs and SHA-256: src/l4d2_cli/_vendor/tomli/SOURCE.json
+
+No SteamCMD or game binaries are bundled with this project.
+
+## Optional external QR backend
+
+QR authentication/downloads can invoke SteamRE/DepotDownloader, tested with release DepotDownloader_3.4.0. It is a separate program, not bundled in the CLI source or wheel; use is governed by its upstream LICENSE.
+
+- Project: https://github.com/SteamRE/DepotDownloader
+- Tested release: https://github.com/SteamRE/DepotDownloader/releases/tag/DepotDownloader_3.4.0
+- License: https://github.com/SteamRE/DepotDownloader/blob/DepotDownloader_3.4.0/LICENSE
+- Interface: -qr / -remember-password / Linux depot manifest and content downloads. No upstream source code is copied into the Python CLI.
+
+## Linux executable distribution
+
+The Linux directory bundle includes CPython 3.12.15 from the unmodified astral-sh/python-build-standalone release 20261013. Its exact upstream asset URL/SHA256 and build-tool versions are recorded in scripts/packaging/runtime.json and the bundle's build-info.json.
+
+- Runtime source and license collection: https://github.com/astral-sh/python-build-standalone/tree/20261013
+- CPython and runtime dependency license texts are copied into licenses/python-runtime/ in the executable package. Some upstream notices cover components not collected by this CLI.
+- PyInstaller 6.22.3 freezes the CLI using its bootloader exception; its COPYING.txt is retained in licenses/PyInstaller-COPYING.txt. No PyInstaller source is modified.
+- The source CLI is MIT-licensed; bundled CPython/runtime libraries retain their own licenses. SteamCMD, game binaries and optional DepotDownloader are excluded.

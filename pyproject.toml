@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68,<75.4; python_version < '3.9'", "setuptools>=68; python_version >= '3.9'"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "l4d2-server-cli"
+version = "0.1.0a1"
+description = "Install and manage a vanilla Linux Left 4 Dead 2 dedicated server"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Wizard23333"}]
+dependencies = []
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+l4d2 = "l4d2_cli.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Wizard23333/l4d2-server-cli"
+Repository = "https://github.com/Wizard23333/l4d2-server-cli"
+Issues = "https://github.com/Wizard23333/l4d2-server-cli/issues"
+
+[tool.setuptools]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+l4d2_cli = ["templates/*.in", "_vendor/tomli/LICENSE", "_vendor/tomli/SOURCE.json"]

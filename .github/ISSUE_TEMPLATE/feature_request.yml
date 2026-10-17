@@ -1,0 +1,16 @@
+name: Feature request / 功能建议
+description: 提供具体场景及期望行为
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 使用场景
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected behavior / 期望行为
+      description: 请说明是否属于官方图单实例管理；三方图、MOD 和多实例属于后续方向。
+    validations:
+      required: true
