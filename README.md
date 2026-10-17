@@ -30,11 +30,16 @@ curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.
 sha256sum -c l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
 tar -xzf l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
 cd l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64
-./l4d2 --version
-./l4d2 --help
+# alpha.1 的旧附件不含安装器，先获取仓库提供的独立安装脚本
+curl -fLo install.sh https://raw.githubusercontent.com/Wizard23333/l4d2-server-cli/main/scripts/packaging/install.sh
+sudo bash ./install.sh
+l4d2 --version
+l4d2 --help
 ```
 
-保留整个解压目录，包括 `_internal/`，不要只复制 `l4d2`。内置运行时只解决CLI自身依赖；游戏仍需systemd、32位运行库及可用下载来源。详细说明见 [可执行包](docs/executable-package.md)。
+安装器默认把完整CLI复制到 `/usr/local/lib/l4d2-server-cli/`，并注册 `/usr/local/bin/l4d2`。安装后在任意目录都能执行 `l4d2` 和 `sudo l4d2`，原解压目录可移除。后续发布包会直接包含 `install.sh`，无需单独获取。已有其他程序的同名命令会报冲突，不自动覆盖。
+
+也可保留整个解压目录（包括 `_internal/`），用 `./l4d2` 便携运行；不要只复制可执行文件。内置运行时只解决CLI自身依赖；游戏仍需systemd、32位运行库及可用下载来源。详细说明见 [可执行包](docs/executable-package.md)。
 
 ### Python wheel 或源码
 
@@ -48,7 +53,7 @@ python3 -m venv .venv
 
 也可在项目源码目录执行 `python3 bin/l4d2 --help`，无需下载Python运行依赖。安装源码到venv使用 `.venv/bin/python -m pip install .`，构建依赖可能需要联网。
 
-以下示例使用解压目录中的 `./l4d2`；wheel安装将其替换为 `.venv/bin/l4d2`，源码方式替换为 `python3 bin/l4d2`。
+以下示例使用全局安装后的 `l4d2`；便携运行使用解压目录中的 `./l4d2`，wheel安装使用 `.venv/bin/l4d2`，源码方式使用 `python3 bin/l4d2`。
 
 ## 已实现的命令
 
@@ -79,13 +84,13 @@ python3 -m venv .venv
 ## 安装游戏并启动
 
 ```bash
-./l4d2 network check
-./l4d2 server install --dir /opt/l4d2 --dry-run
-sudo ./l4d2 server install --dir /opt/l4d2
-sudo ./l4d2 server configure --name "My L4D2 Server" --port 27015 \
+l4d2 network check
+l4d2 server install --dir /opt/l4d2 --dry-run
+sudo l4d2 server install --dir /opt/l4d2
+sudo l4d2 server configure --name "My L4D2 Server" --port 27015 \
   --map c1m1_hotel --mode coop --difficulty normal --visibility public
-sudo ./l4d2 server start
-sudo ./l4d2 server status --json
+sudo l4d2 server start
+sudo l4d2 server status --json
 ```
 
 默认安装尝试匿名下载；若 Steam 拒绝匿名授权，先按下方“首次账号登录”步骤认证，再用同一账号与缓存安装。
@@ -98,12 +103,12 @@ CLI 不自动修改防火墙或云安全组。放行游戏 UDP 端口后，在�
 
 ```bash
 # 公开房间：清除组 ID，允许直连
-sudo ./l4d2 server configure --visibility public
-sudo ./l4d2 server restart
+sudo l4d2 server configure --visibility public
+sudo l4d2 server restart
 
 # Steam 组房间：填写组管理页上的短数字 ID
-sudo ./l4d2 server configure --visibility group --steam-group-id YOUR_SHORT_GROUP_ID
-sudo ./l4d2 server restart
+sudo l4d2 server configure --visibility group --steam-group-id YOUR_SHORT_GROUP_ID
+sudo l4d2 server restart
 ```
 
 只传 `--steam-group-id` 也会选择组模式。组模式使用原版组优先规则，并要求通过大厅加入；使用组成员账号在 L4D2 的 Steam 组服务器列表/大厅中验证。空房优先由组员进入，已有玩家时非组员可能加入，因此不是严格白名单。公开模式可用 `connect YOUR_SERVER_IP:27015`。
@@ -116,22 +121,22 @@ sudo ./l4d2 server restart
 
 ```bash
 # 用本地 SteamCMD 包替代工具下载
-sudo ./l4d2 server install --steamcmd-archive ./steamcmd_linux.tar.gz
+sudo l4d2 server install --steamcmd-archive ./steamcmd_linux.tar.gz
 
 # 或克隆已有完整工具目录及其私有登录缓存
-sudo ./l4d2 server install --steamcmd-path /path/to/steamcmd.sh
+sudo l4d2 server install --steamcmd-path /path/to/steamcmd.sh
 
 # 在连通的 Linux 主机以普通用户制作完整游戏包
-./l4d2 download server --output ./server-linux.tar.gz
+l4d2 download server --output ./server-linux.tar.gz
 
 # 传到目标主机后离线导入；系统依赖需提前备齐
-sudo ./l4d2 server install --server-archive ./server-linux.tar.gz --offline
+sudo l4d2 server install --server-archive ./server-linux.tar.gz --offline
 ```
 
 获取工具包时可以对单次命令指定已有HTTP代理；这不会为SteamCMD的全部协议配置代理：
 
 ```bash
-HTTPS_PROXY=http://127.0.0.1:YOUR_PROXY_PORT ./l4d2 download steamcmd --output ./steamcmd_linux.tar.gz
+HTTPS_PROXY=http://127.0.0.1:YOUR_PROXY_PORT l4d2 download steamcmd --output ./steamcmd_linux.tar.gz
 ```
 
 SteamCMD 包只替代工具获取，工具更新和游戏下载仍可能联网。完整游戏包须由 `download server` 制作；可用 `--sha256 HASH` 校验本地包。`--offline` 约束安装过程，不保证游戏运行能够断网。
@@ -148,9 +153,9 @@ SteamCMD 包只替代工具获取，工具更新和游戏下载仍可能联网�
 
 ```bash
 AUTH_CACHE="$HOME/.local/share/l4d2-cli/first-login"
-./l4d2 auth login --fresh --cache "$AUTH_CACHE"
+l4d2 auth login --fresh --cache "$AUTH_CACHE"
 # 按提示输入账号名、密码并完成 Steam Guard；登录核验成功后再安装
-sudo ./l4d2 server install --steam-user YOUR_STEAM_LOGIN_NAME \
+sudo l4d2 server install --steam-user YOUR_STEAM_LOGIN_NAME \
   --steamcmd-path "$AUTH_CACHE/steamcmd/steamcmd.sh"
 ```
 
@@ -162,10 +167,10 @@ sudo ./l4d2 server install --steam-user YOUR_STEAM_LOGIN_NAME \
 
 ```bash
 QR_CACHE="$HOME/.local/share/l4d2-cli/qr-first-login"
-./l4d2 auth login --method qr --fresh --cache "$QR_CACHE" \
+l4d2 auth login --method qr --fresh --cache "$QR_CACHE" \
   --depotdownloader-path /path/to/DepotDownloader
-./l4d2 download server --qr-cache "$QR_CACHE" --output ./qr-server-linux.tar.gz
-sudo ./l4d2 server install --server-archive ./qr-server-linux.tar.gz --offline
+l4d2 download server --qr-cache "$QR_CACHE" --output ./qr-server-linux.tar.gz
+sudo l4d2 server install --server-archive ./qr-server-linux.tar.gz --offline
 ```
 
 按提示输入登录账号名，再使用 Steam 手机 App 扫码确认。扫码缓存由该后端使用，生成完整游戏包后导入；不能把扫码缓存传给 SteamCMD。二维码方式为实验能力，批准登录、缓存复用及完整下载链路尚未完成实机验证。详见 [扫码说明](docs/qr-login.md)。

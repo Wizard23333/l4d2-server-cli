@@ -2,6 +2,8 @@
 
 用户安装见项目根README和 `docs/executable-package.md`。这里只处理CLI，游戏和账号数据不进入包；构建和验证结果保存在被忽略的 `docs/test-results/`。
 
+包内 `install.sh` 默认安装到 `/usr/local/lib/l4d2-server-cli/` 并注册 `/usr/local/bin/l4d2`，无需系统Python。构建必须打入可执行安装脚本并写入清单；归档检查核对脚本来源，解压冒烟检查在隔离prefix实际安装并从其他目录按命令名运行版本和帮助，不写系统PATH目录。
+
 在Linux x86_64、glibc2.31基线上，以普通用户在独立工作目录构建。使用 `runtime.json` 指定的未修改CPython安装包并验证SHA256，解压后创建venv；所需系统工具为objdump/readelf/strip。构建工具版本固定在 `requirements-linux-build.txt`，不写入全局Python。
 
 ```bash

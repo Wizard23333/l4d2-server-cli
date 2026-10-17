@@ -9,15 +9,18 @@ https://github.com/@REPOSITORY@/releases/tag/@TAG@
 sha256sum -c l4d2-server-cli-@TAG@-linux-x86_64.sha256
 tar -xzf l4d2-server-cli-@TAG@-linux-x86_64.tar.gz
 cd l4d2-server-cli-@TAG@-linux-x86_64
-./l4d2 --version
-./l4d2 --help
-./l4d2 network check
-sudo ./l4d2 server install --dir /opt/l4d2
-sudo ./l4d2 server configure --name "My L4D2 Server" --visibility public
-sudo ./l4d2 server start
+sudo bash ./install.sh
+l4d2 --version
+l4d2 --help
+l4d2 network check
+sudo l4d2 server install --dir /opt/l4d2
+sudo l4d2 server configure --name "My L4D2 Server" --visibility public
+sudo l4d2 server start
 ```
 
-Keep the entire directory, including _internal/. Do not copy only the l4d2 executable. Run `./l4d2 auth login` as an ordinary user if account authentication is needed; do not use sudo for login.
+The installer copies the complete verified CLI into /usr/local/lib/l4d2-server-cli/ and registers /usr/local/bin/l4d2. Both ordinary shells and sudo can use `l4d2` from any directory; the original extraction can then be removed. An unrelated existing command is never overwritten. Reinstalling the same bundle is supported; upgrades switch the command only after verification. Game files and services are not changed by this CLI installation.
+
+For portable use, keep the entire extracted directory, including _internal/, and run `./l4d2`. Do not copy only the executable. Run `l4d2 auth login` as an ordinary user if account authentication is needed; do not use sudo for login.
 
 The CLI does not open firewalls or cloud security groups. Allow the game UDP port and verify joining from an external client. SteamCMD, game files, account caches, server configuration and test reports are not included.
 

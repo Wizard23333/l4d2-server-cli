@@ -51,7 +51,17 @@ def main():
                             cwd="/tmp", env=environment, stdout=subprocess.PIPE, text=True, timeout=20)
     if result.returncode != 2 or json.loads(result.stdout)["error"]["code"] != "invalid_arguments":
         raise ValueError("Native argument/JSON error behavior changed.")
-    print("Native archive, SHA256, version, 13 help routes and JSON error checks passed.")
+    prefix = args.unpack.resolve() / "global-install"
+    subprocess.run(["bash", str(cli.parent / "install.sh"), "--prefix", str(prefix)],
+                   cwd="/tmp", env=environment, check=True, stdout=subprocess.DEVNULL, timeout=60)
+    environment["PATH"] = str(prefix / "bin") + os.pathsep + environment["PATH"]
+    result = subprocess.run(["l4d2", "--version"], cwd="/tmp", env=environment,
+                            check=True, stdout=subprocess.PIPE, text=True, timeout=20)
+    if result.stdout.strip() != "l4d2-server-cli " + version:
+        raise ValueError("Globally registered CLI version mismatch.")
+    subprocess.run(["l4d2", "--help"], cwd="/tmp", env=environment,
+                   check=True, stdout=subprocess.DEVNULL, timeout=20)
+    print("Native archive, SHA256, version, 13 help routes, JSON errors and global installation passed.")
 
 
 if __name__ == "__main__":

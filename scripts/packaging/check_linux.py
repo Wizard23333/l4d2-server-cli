@@ -44,7 +44,7 @@ def inspect_archive(path, root):
                 fail("unsupported_member_type")
         if any(link in PurePosixPath(name).parents for link in symlinks for name in names):
             fail("member_under_symlink")
-        required = {"l4d2", "build-info.json", "FILES.sha256", "INSTALL.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
+        required = {"l4d2", "install.sh", "build-info.json", "FILES.sha256", "INSTALL.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
                     "licenses/PyInstaller-COPYING.txt", "licenses/python-runtime/CPython-LICENSE.txt",
                     "_internal/l4d2_cli/templates/l4d2-main.service.in"}
         if not required.issubset(payloads):
@@ -54,6 +54,9 @@ def inspect_archive(path, root):
             fail("not_linux_x86_64_elf")
         if not next(m for m in members if m.name == prefix + "/l4d2").mode & 0o111:
             fail("entry_not_executable")
+        if (payloads["install.sh"] != (root / "scripts/packaging/install.sh").read_bytes() or
+                not next(m for m in members if m.name == prefix + "/install.sh").mode & 0o111):
+            fail("installer_mismatch")
         info = json.loads(payloads["build-info.json"])
         namespace = {}
         exec((root / "src/l4d2_cli/__init__.py").read_text(encoding="utf-8"), namespace)

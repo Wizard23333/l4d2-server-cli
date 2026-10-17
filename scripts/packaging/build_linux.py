@@ -126,6 +126,8 @@ def main():
     guide = guide.replace("@TAG@", tag).replace("@PYTHON_VERSION@", expected["python_version"])
     guide = guide.replace("@REPOSITORY@", os.environ.get("GITHUB_REPOSITORY", "Wizard23333/l4d2-server-cli"))
     (bundle / "INSTALL.md").write_text(guide, encoding="utf-8")
+    shutil.copyfile(ROOT / "scripts/packaging/install.sh", bundle / "install.sh")
+    (bundle / "install.sh").chmod(0o755)
     license_dir = bundle / "licenses/python-runtime"
     license_dir.mkdir(parents=True)
     for path in sorted(args.runtime_licenses.glob("LICENSE*")):
