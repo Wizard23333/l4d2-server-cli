@@ -10,6 +10,10 @@ The CLI bundles the unmodified pure-Python sources of Tomli 2.0.1 for Python 3.8
 
 No SteamCMD or game binaries are bundled with this project.
 
+## Project-owned migration sources
+
+The catalog/mission parsing and bundled SourcePawn sources in `src/l4d2_cli/ops/` were migrated from L4D2-Server-Manager-Skill, Copyright (c) 2026 Wizard23333, under the same MIT license as this repository. No web server or browser frontend is required by these modules. MetaMod, SourceMod and Left4DHooks are fetched only when explicitly requested and retain their respective upstream licenses; their binaries are not bundled.
+
 ## Optional external QR backend
 
 QR authentication/downloads can invoke SteamRE/DepotDownloader, tested with release DepotDownloader_3.4.0. It is a separate program, not bundled in the CLI source or wheel; use is governed by its upstream LICENSE.

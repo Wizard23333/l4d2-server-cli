@@ -33,4 +33,4 @@ license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-l4d2_cli = ["templates/*.in", "_vendor/tomli/LICENSE", "_vendor/tomli/SOURCE.json"]
+l4d2_cli = ["templates/*.in", "ops/assets/*.sp", "_vendor/tomli/LICENSE", "_vendor/tomli/SOURCE.json"]

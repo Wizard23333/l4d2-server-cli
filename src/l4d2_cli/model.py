@@ -61,9 +61,6 @@ class Config:
             raise CliError("Unsupported config version.", "config_version", 2)
         if self.visibility not in {"public", "group"}:
             raise CliError("Visibility must be public or group.", "invalid_visibility", 2)
-        if self.visibility == "public" and self.steam_group_id:
-            raise CliError("Public mode must have no Steam group ID; use --visibility group to associate a group.",
-                           "invalid_group_settings", 2)
         if self.visibility == "group" and not self.steam_group_id:
             raise CliError("Steam group mode requires --steam-group-id with your group's short numeric ID.",
                            "steam_group_required", 2)
@@ -80,8 +77,8 @@ class Config:
             raise CliError("--bind must be an IPv4 address.", "invalid_bind", 2) from None
         if isinstance(self.port, bool) or not isinstance(self.port, int) or not 1024 <= self.port <= 65535:
             raise CliError("Port must be between 1024 and 65535.", "invalid_port", 2)
-        if self.map not in OFFICIAL_MAPS:
-            raise CliError("Only catalogued official maps are supported.", "invalid_map", 2)
+        if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,95}", self.map):
+            raise CliError("Use a safe installed map name.", "invalid_map", 2)
         if self.mode not in {"coop", "versus"}:
             raise CliError("Mode must be coop or versus.", "invalid_mode", 2)
         if self.map.startswith("c14") and self.mode == "versus":

@@ -1,196 +1,195 @@
 # L4D2 Server CLI
 
-用于安装、配置和管理原版 Left 4 Dead 2 专用服务器的命令行工具。首版管理一个实例 `main`，使用官方地图。
+在 Linux 上安装和管理 Left 4 Dead 2 专用服务器的命令行工具。从首次部署到多房间、地图、插件和备份，使用同一套 CLI 完成日常运维。
 
-版本：`0.1.0a1`（`v0.1.0-alpha.1`），首个alpha预览版。支持官方服务端安装、基础配置、公开/Steam组房间切换、启停和诊断。
+所有运维能力均可独立运行，无需部署 Web 面板；支持操作预览、后台任务和 JSON 输出，便于手动使用或接入自动化工具。
 
-## 环境要求
+[功能概览](#功能概览) · [安装](#安装) · [快速上手](#快速上手) · [日常运维](#日常运维) · [文档](#文档)
 
-- Linux x86_64、glibc、运行中的systemd。可执行包要求glibc2.31+并内置Python；源码/wheel方式需要Python3.8+。
-- 已实现 Ubuntu/Debian、Fedora/RHEL/Rocky/AlmaLinux、openSUSE 和 Arch 家族适配；Ubuntu 20.04 已实机验证，其他发行版完整流程待测。
-- 首次游戏安装采用 20 GiB 空闲空间预算；需要 SteamCMD/游戏的 32 位运行库。
-- 安装、配置和启停使用 sudo；游戏以独立普通用户运行。
+## 功能概览
 
-CLI 在目标 Linux 主机执行。Windows 可编辑源码和查看帮助；详细前提见 [Linux 支持说明](docs/linux-support.md)。
+| 能力 | 功能 | 命令 |
+| --- | --- | --- |
+| 游戏部署 | 官方服务端下载安装、Steam 认证、本地工具与完整游戏包导入 | `server`、`auth`、`download` |
+| 房间管理 | 接管已有服务器，创建多实例，配置公开/Steam 组模式，逐房间启停和查询 | `room` |
+| 地图战役 | Workshop 搜索与合集/多 Part 解析、GameMaps 安装、VPK 导入与校验提取、默认地图与在线切图、卸载重装 | `map` |
+| VPK Mod | 搜索、下载安装、本地导入、启用、禁用和卸载重装 | `addon` |
+| 服务器插件 | 安装 MetaMod、SourceMod、Left4DHooks，管理 `.smx` 插件，编译和部署 SourcePawn 源码 | `plugin` |
+| 管理员与控制台 | 管理 SourceMod、Left4Bots、Admin System 管理员记录，执行 RCON 指令 | `admin`、`rcon` |
+| 后台任务 | 提交长时间操作，查看状态、下载进度和日志，取消、重试及删除任务 | `task` |
+| 资源传输与备份 | 来源 Manifest、离线 VPK ZIP、旧面板来源记录导入，完整状态与插件栈备份恢复 | `transfer`、`backup` |
+| 诊断与维护 | 主机和房间检查、日志、磁盘占用、缓存清理、mission BOM 与权限修复、事务恢复 | `doctor`、`storage`、`repair` |
+| 网络与自动化 | 网络预检、内容下载代理、Steam API key、CDN hosts 和 IPv4 优先配置，输出运维能力清单 | `network`、`capabilities` |
 
-## 安装 CLI
+每个命令均可通过 `--help` 查看参数，例如 `l4d2 room create --help`。完整操作指南见 [CLI 运维说明](docs/operations.md)。
 
-### Linux x86_64 可执行包（推荐）
+## 安装
 
-不需要系统Python、venv或pip。从 [v0.1.0-alpha.1 预览版 Release](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.1) 下载两个同版本附件，放在同一目录：
+### 环境要求
 
-- [Linux x86_64可执行包（tar.gz）](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz)
-- [SHA256校验文件](https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256)
+- Linux x86_64、glibc，以及运行中的 systemd。可执行包要求 glibc 2.31+；源码或 wheel 需要 Python 3.8+。
+- 安装游戏需准备 SteamCMD/游戏的 32 位运行库；首次安装按至少 20 GiB 空闲空间预检，第三方地图和备份需额外空间。
+- 安装、配置及服务管理使用 `sudo`；游戏以普通系统用户运行。Steam 账号登录使用普通用户执行。
 
-也可以直接下载并验证：
+Ubuntu 20.04 已完成核心流程实测；其他发行版适配、依赖及验证范围见 [Linux 支持说明](docs/linux-support.md)。
+
+### 可执行包
+
+可执行包内置 Python，无需系统 Python、venv 或 pip。将完整目录包解压，进入包含 `l4d2`、`_internal/`、`FILES.sha256` 和 `install.sh` 的目录：
 
 ```bash
-curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
-curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.1/l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
-sha256sum -c l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.sha256
-tar -xzf l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64.tar.gz
-cd l4d2-server-cli-v0.1.0-alpha.1-linux-x86_64
-# alpha.1 的旧附件不含安装器，先获取仓库提供的独立安装脚本
-curl -fLo install.sh https://raw.githubusercontent.com/Wizard23333/l4d2-server-cli/main/scripts/packaging/install.sh
+sha256sum -c FILES.sha256
 sudo bash ./install.sh
 l4d2 --version
-l4d2 --help
+l4d2 capabilities --json
 ```
 
-安装器默认把完整CLI复制到 `/usr/local/lib/l4d2-server-cli/`，并注册 `/usr/local/bin/l4d2`。安装后在任意目录都能执行 `l4d2` 和 `sudo l4d2`，原解压目录可移除。后续发布包会直接包含 `install.sh`，无需单独获取。已有其他程序的同名命令会报冲突，不自动覆盖。
+安装器将完整程序复制到 `/usr/local/lib/l4d2-server-cli/`，注册 `/usr/local/bin/l4d2`。随后可在任意目录使用 `l4d2` 或 `sudo l4d2`；升级时验证新目录后切换入口，保留旧安装。安装 CLI 不修改游戏配置或启停房间。
 
-也可保留整个解压目录（包括 `_internal/`），用 `./l4d2` 便携运行；不要只复制可执行文件。内置运行时只解决CLI自身依赖；游戏仍需systemd、32位运行库及可用下载来源。详细说明见 [可执行包](docs/executable-package.md)。
+也可保留整个目录，用 `./l4d2` 便携运行。构建方式见 [Linux 打包说明](scripts/packaging/README.md)。
 
-### Python wheel 或源码
+### 源码或 wheel
 
-已有Python3.8+、venv/pip时，可以离线安装本地wheel：
+在项目根目录创建虚拟环境并安装：
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install --no-index --no-deps /path/to/l4d2_server_cli-0.1.0a1-py3-none-any.whl
-.venv/bin/l4d2 --version
+.venv/bin/python -m pip install .
+.venv/bin/l4d2 --help
 ```
 
-也可在项目源码目录执行 `python3 bin/l4d2 --help`，无需下载Python运行依赖。安装源码到venv使用 `.venv/bin/python -m pip install .`，构建依赖可能需要联网。
+已有本地 wheel 时，将安装命令替换为：
 
-以下示例使用全局安装后的 `l4d2`；便携运行使用解压目录中的 `./l4d2`，wheel安装使用 `.venv/bin/l4d2`，源码方式使用 `python3 bin/l4d2`。
+```bash
+.venv/bin/python -m pip install --no-index --no-deps /path/to/l4d2_server_cli-VERSION-py3-none-any.whl
+```
 
-## 已实现的命令
+`VERSION` 为实际文件版本号。源码安装的构建依赖可能需要联网；直接运行 `python3 bin/l4d2` 无需下载 Python 运行依赖。
 
-表中的 `l4d2` 指上述 CLI 入口；任意子命令加 `--help` 可查看完整参数。
+下文以全局命令 `l4d2` 为例。便携运行使用 `./l4d2`，源码和 wheel 使用虚拟环境中入口的绝对路径；需要管理员权限时在该入口前加 `sudo`。
 
-| 命令 | 功能 |
-| --- | --- |
-| `l4d2 --help / --version` | 查看帮助或版本 |
-| `l4d2 doctor` | 检查主机条件、网络、安装及本地服务健康情况 |
-| `l4d2 network check` | 按安装来源执行独立网络预检 |
-| `l4d2 download steamcmd --output FILE` | 下载官方 Linux SteamCMD 工具包 |
-| `l4d2 download server --output FILE` | 下载全新官方 Linux 游戏内容并制作可导入的完整包；普通用户执行 |
-| `l4d2 auth login` | 密码/扫码登录并验证私有缓存；扫码需可选后端；普通用户执行 |
-| `l4d2 server install` | 安装官方服务器，登记目录并生成 systemd 服务，安装后保持停止 |
-| `l4d2 server configure` | 配置 ASCII 名称、IPv4、端口、默认官方地图、coop/versus、合作难度、公开/Steam 组模式、RCON 密码及开机启动 |
-| `l4d2 server start` | 启动服务并检查本地就绪情况 |
-| `l4d2 server stop` | 停止服务 |
-| `l4d2 server restart` | 重启服务并检查本地就绪情况 |
-| `l4d2 server status` | 查看安装、服务和本地查询状态 |
-| `l4d2 server logs` | 查看脱敏日志，支持 `--lines`、`--since`、`--follow`；需 sudo |
+## 快速上手
 
-原版限制：房间名称使用 ASCII。非空入场密码 `sv_password` 会妨碍 Steam 查询/连接，首版拒绝设置；旧配置可用 `server configure --clear-join-password` 清除，再重启。RCON 密码及 Steam 账号密码登录保持支持。
+### 新建服务器
 
-安装和配置支持交互确认；不带设置参数的 `configure` 会打开配置向导。配置保存不会自动重启，默认不开机启动。
-
-`install/configure/start/stop/restart` 支持 `--dry-run` 查看计划；需要确认的操作可用 `--yes`。除交互登录和日志外，命令支持 `--json`；网络、下载、登录、安装和启停支持 `--timeout`。具体以各命令帮助为准。
-
-## 安装游戏并启动
+检查下载网络，安装游戏，保存配置后启动默认房间：
 
 ```bash
 l4d2 network check
-l4d2 server install --dir /opt/l4d2 --dry-run
 sudo l4d2 server install --dir /opt/l4d2
 sudo l4d2 server configure --name "My L4D2 Server" --port 27015 \
   --map c1m1_hotel --mode coop --difficulty normal --visibility public
 sudo l4d2 server start
-sudo l4d2 server status --json
+sudo l4d2 server status
 ```
 
-默认安装尝试匿名下载；若 Steam 拒绝匿名授权，先按下方“首次账号登录”步骤认证，再用同一账号与缓存安装。
+CLI 安装的默认房间 ID 为 `main`，服务为 `l4d2-main.service`。安装完成后保持停止、默认不开机启动；`server configure` 不带设置参数时可进入交互向导。
 
-CLI 不自动修改防火墙或云安全组。放行游戏 UDP 端口后，在外部原版客户端执行 `connect YOUR_SERVER_IP:27015`；NAT 环境还需端口转发。本地就绪不代表外网玩家已经能加入。
+默认尝试匿名下载。若 Steam 返回 `No subscription` 等授权错误，需先以普通用户完成账号认证，再使用同一账号和缓存安装，见 [Steam 登录说明](docs/steam-auth.md)。账号登录不改变房间的公开/Steam 组设置。
 
-## 公开房间与 Steam 组房间
+放行主机防火墙、云安全组及必要的 NAT 端口转发后，公开房间可从游戏控制台连接：
 
-同一个 `main` 房间可切换两种模式，保存后单独重启生效：
+```text
+connect YOUR_SERVER_IP:27015
+```
+
+本机显示就绪表示游戏查询和端口归属已确认；公网连通及实际加入需要从外部客户端验证。
+
+### 接管已有服务器
+
+已有游戏目录使用 `room scan` 和 `room adopt` 登记。按实际情况替换路径、服务名和运行用户，先预览接管计划：
 
 ```bash
-# 公开房间：清除组 ID，允许直连
-sudo l4d2 server configure --visibility public
-sudo l4d2 server restart
-
-# Steam 组房间：填写组管理页上的短数字 ID
-sudo l4d2 server configure --visibility group --steam-group-id YOUR_SHORT_GROUP_ID
-sudo l4d2 server restart
+sudo l4d2 room scan --dir /opt/l4d2 --json
+sudo l4d2 room adopt --id room1 --dir /opt/l4d2 \
+  --service l4d2 --script /opt/l4d2/start_l4d2.sh \
+  --cfg /opt/l4d2/left4dead2/cfg/server.cfg --user steam --dry-run
 ```
 
-只传 `--steam-group-id` 也会选择组模式。组模式使用原版组优先规则，并要求通过大厅加入；使用组成员账号在 L4D2 的 Steam 组服务器列表/大厅中验证。空房优先由组员进入，已有玩家时非组员可能加入，因此不是严格白名单。公开模式可用 `connect YOUR_SERVER_IP:27015`。
+核对后将 `--dry-run` 替换为 `--yes`。接管只登记状态，不重新下载或重启游戏；启动脚本与服务的接管条件见 [房间登记与旧服接管](docs/operations.md#房间登记与旧服接管)。
 
-配置向导同样可选 `public/group`。短 ID、长 `groupID64`、组页面 URL 不通用；CLI 会拒绝后两者。旧 CLI 配置缺少新增字段时默认仍为公开。详情与参数对应表见 [配置说明](docs/configuration.md)。
+## 日常运维
 
-## 网络失败与备用安装
+除首次安装外，房间操作通过 `--room ID` 选择目标，默认 `main`。`server` 命令管理默认房间，`room` 命令用于统一管理所有已登记房间。
 
-支持在线下载、本地 SteamCMD 包、已有完整 Linux SteamCMD 目录和完整 Linux 游戏包导入；安装前会自动预检必要网络。HTTP 代理预检通过不代表 Steam 内容连接可用。
+以下变更示例使用 `--dry-run` 查看计划；确认目标和影响后，替换为 `--yes` 执行。配置、地图和插件保存后不会自动重启，需单独选择房间启动或重启。新建房间保持停止且不开机启动。
+
+### 房间与可见性
 
 ```bash
-# 用本地 SteamCMD 包替代工具下载
-sudo l4d2 server install --steamcmd-archive ./steamcmd_linux.tar.gz
-
-# 或克隆已有完整工具目录及其私有登录缓存
-sudo l4d2 server install --steamcmd-path /path/to/steamcmd.sh
-
-# 在连通的 Linux 主机以普通用户制作完整游戏包
-l4d2 download server --output ./server-linux.tar.gz
-
-# 传到目标主机后离线导入；系统依赖需提前备齐
-sudo l4d2 server install --server-archive ./server-linux.tar.gz --offline
+sudo l4d2 room list --json
+sudo l4d2 room status --room main --json
+sudo l4d2 room logs --room main --lines 100
+sudo l4d2 room create --id room2 --from-room main --port 27016 \
+  --name "Room 2" --dry-run
+sudo l4d2 room configure --room main --visibility group \
+  --steam-group-id YOUR_SHORT_GROUP_ID --dry-run
+sudo l4d2 room restart --room main --dry-run
 ```
 
-获取工具包时可以对单次命令指定已有HTTP代理；这不会为SteamCMD的全部协议配置代理：
+公开模式使用 `--visibility public`；Steam 组模式需要短数字组 ID，通过组服务器列表/大厅加入。组模式采用原版组优先规则，不是严格成员白名单，详见 [房间配置](docs/configuration.md#公开与-steam-组模式)。
+
+同一游戏目录下的房间共享地图、Mod 和插件，端口、配置与服务各自独立。变更计划会列出受影响房间。
+
+### 地图、Mod 与插件
 
 ```bash
-HTTPS_PROXY=http://127.0.0.1:YOUR_PROXY_PORT l4d2 download steamcmd --output ./steamcmd_linux.tar.gz
+sudo l4d2 map search "Run to the Hills" --json
+sudo l4d2 map install 2232584588 --room main --dry-run
+sudo l4d2 map list --room main --json
+sudo l4d2 map change YOUR_INSTALLED_MAP --room main --dry-run
+sudo l4d2 addon import --room main --file /path/to/mod.vpk --dry-run
+sudo l4d2 plugin stack --room main --dry-run
+sudo l4d2 plugin list --room main --json
 ```
 
-SteamCMD 包只替代工具获取，工具更新和游戏下载仍可能联网。完整游戏包须由 `download server` 制作；可用 `--sha256 HASH` 校验本地包。`--offline` 约束安装过程，不保证游戏运行能够断网。
+`YOUR_INSTALLED_MAP` 使用地图清单中的实际名称。在线切图需要为目标房间配置 RCON；密码通过权限为 `0600` 的私有文件输入。VPK 校验与分卷提取、SourcePawn 编译、管理员及 RCON 指令示例见 [CLI 运维说明](docs/operations.md)。
 
-### 首次账号登录
-
-服务端安装文件由Steam提供。CLI默认以匿名身份（`anonymous`）下载；匿名下载可用时，无需先登录账号。如果Steam明确拒绝匿名下载授权（例如返回 `No subscription`），可以改用Steam账号请求下载，实际能否下载取决于Steam授予该账号的内容访问权限。
-
-`auth login`用于完成Steam身份验证，并生成后续 `server install` / `download server` 可复用的本地私有登录缓存。登录成功只证明账号认证和缓存复用通过，是否有下载权限还要由实际下载结果确认。账号登录不影响房间的公开/Steam组设置；已安装房间的日常启停也无需重新执行此登录步骤。
-
-连接超时、DNS或代理故障仍需处理网络问题，账号登录不会自动解决。如果使用已准备好的完整游戏包离线导入，目标服务器无需执行账号登录。
-
-需要账号下载且首次没有登录缓存时，以普通用户完成密码/Steam Guard认证，再使用新生成的缓存安装；不要对 `auth login` 使用sudo：
+### 后台任务、传输与备份
 
 ```bash
-AUTH_CACHE="$HOME/.local/share/l4d2-cli/first-login"
-l4d2 auth login --fresh --cache "$AUTH_CACHE"
-# 按提示输入账号名、密码并完成 Steam Guard；登录核验成功后再安装
-sudo l4d2 server install --steam-user YOUR_STEAM_LOGIN_NAME \
-  --steamcmd-path "$AUTH_CACHE/steamcmd/steamcmd.sh"
+sudo l4d2 task submit --dry-run -- map install 2232584588 --room main --timeout 1800
+sudo l4d2 task list --json
+sudo l4d2 task show YOUR_TASK_ID --json
+sudo l4d2 transfer import --room main --format zip --file /path/to/content.zip --dry-run
+sudo l4d2 backup create --room main --scope full --dry-run
 ```
 
-`--fresh` 要求新建或空目录，并排除已有工具的登录配置；遇到非空缓存会拒绝覆盖。密码/Steam Guard 交给原生提示，CLI 随后验证免密码复用。安装时填写刚登录的同一账号名。详见 [首次登录说明](docs/steam-auth.md)。
+任务提交后可关闭终端，通过返回的任务 ID 查看状态、当前文件下载进度和日志，或取消、重试操作。
 
-### 可选：二维码登录
+资源传输支持来源 Manifest 和离线 VPK ZIP。完整状态备份保存配置、服务、插件栈、源码、管理员及 Mod 启停态；地图保存来源记录以便重新下载。备份可能包含秘密，需私有保存；恢复前必须停止所有共享游戏目录的房间，恢复后显式启动。详见 [资源传输与备份恢复](docs/operations.md#资源传输和完整备份恢复)。
 
-密码方式保持默认，也可显式指定 `--method password`。二维码方式需要可选的 [DepotDownloader 后端](docs/qr-login.md)：
+### 诊断与网络
 
 ```bash
-QR_CACHE="$HOME/.local/share/l4d2-cli/qr-first-login"
-l4d2 auth login --method qr --fresh --cache "$QR_CACHE" \
-  --depotdownloader-path /path/to/DepotDownloader
-l4d2 download server --qr-cache "$QR_CACHE" --output ./qr-server-linux.tar.gz
-sudo l4d2 server install --server-archive ./qr-server-linux.tar.gz --offline
+sudo l4d2 doctor
+l4d2 network check
+sudo l4d2 room doctor --room main
+sudo l4d2 storage usage --room main --json
+sudo l4d2 network status --json
 ```
 
-按提示输入登录账号名，再使用 Steam 手机 App 扫码确认。扫码缓存由该后端使用，生成完整游戏包后导入；不能把扫码缓存传给 SteamCMD。二维码方式为实验能力，批准登录、缓存复用及完整下载链路尚未完成实机验证。详见 [扫码说明](docs/qr-login.md)。
+支持结构化输出的命令可加 `--json`，进度写入 stderr。状态命令退出成功表示取得报告，自动化应继续检查 `game_ready` 和服务状态。
 
-失败安装保留半成品供相同登记目标重试；不自动接管非空目录或同名服务。配置支持私有密码文件、变更检查和事务恢复，详见 [配置说明](docs/configuration.md)。
+网络预检检查所选安装来源需要的网络入口。HTTP 代理可用于内容下载，但不等于 SteamCMD 全协议代理；网络预检通过也不保证后续 Steam 认证和完整游戏下载成功。网络配置、缓存清理及受控修复见 [诊断、网络与清理](docs/operations.md#诊断网络与清理)。
 
-## 支持范围与已知限制
+## 使用范围
 
-- 已有Ubuntu20.04实机使用记录；其他发行版具有依赖适配，完整流程仍需分别验证，见 [Linux支持范围](docs/linux-support.md)。
-- 当前只管理一个 `main` 实例和官方地图；不包含三方图、Workshop、MOD/插件、在线切图、多实例、Web面板或自动更新。
-- Steam账号密码/Guard认证与非匿名下载安装可用；二维码后端及完整游戏包严格断网全链路仍属实验能力。
-- 房间名仅ASCII，不支持非空入场密码；Steam组模式使用组优先规则，不是严格成员白名单。
-- 本机就绪检查不代表公网玩家已经可以加入；需自行配置防火墙/安全组并从客户端验证。
-- versus、长时间/多玩家及不同组成员状态的完整行为尚未全部验证。
+- 房间名称使用 ASCII。CLI 不支持非空入场密码 `sv_password`；RCON 密码与 Steam 账号认证正常支持。
+- 已验证双实例、真实 Workshop 战役下载与切图、插件加载与编译、后台任务、离线 ZIP 和同机状态恢复。跨机器恢复、GameMaps/多 Part 在线下载及完整多人对局场景仍需进一步验证。
+- 二维码登录需可选后端，目前属于实验能力，见 [二维码登录](docs/qr-login.md)；完整游戏包的严格断网全链路仍待验证。
+- Web 管理面板、统一 Agent Skill 安装和游戏自动更新暂未提供；后续 Web 面板按可选组件设计，CLI 独立提供底层运维能力。
 
-## 文档与反馈
+## 文档
 
-- [配置与权限](docs/configuration.md)
-- [Steam密码登录](docs/steam-auth.md) / [可选二维码登录](docs/qr-login.md)
-- [完整游戏包与离线导入](docs/bundle-format-v1.md)
-- [贡献指南](CONTRIBUTING.md) / [安全报告](SECURITY.md)
+| 文档 | 内容 |
+| --- | --- |
+| [CLI 运维指南](docs/operations.md) | 多房间、地图、Mod、插件、管理员、RCON、任务、传输、备份和修复 |
+| [配置与权限](docs/configuration.md) | 默认房间配置、公开/Steam 组模式、秘密文件与权限 |
+| [Steam 登录](docs/steam-auth.md) / [二维码登录](docs/qr-login.md) | 首次认证、私有缓存及可选登录后端 |
+| [完整游戏包与离线导入](docs/bundle-format-v1.md) | 制作安装包、本地来源和离线安装 |
+| [Linux 支持范围](docs/linux-support.md) | 运行环境、发行版依赖和验证边界 |
+| [安装包说明](docs/executable-package.md) / [构建说明](scripts/packaging/README.md) | 可执行目录包、安装器及 Linux 构建流程 |
+| [贡献指南](CONTRIBUTING.md) / [安全报告](SECURITY.md) / [更新记录](CHANGELOG.md) | 开发验证、问题反馈和变更记录 |
 
-源码采用 [MIT许可证](LICENSE)。游戏文件、SteamCMD包、登录缓存、服务器秘密及本地开发/测试记录不进入公开仓库或程序发布包。
+源码采用 [MIT 许可证](LICENSE)。游戏文件、SteamCMD、登录缓存及服务器秘密不进入仓库或程序发布包；反馈问题时请提供环境、命令和脱敏后的错误信息。

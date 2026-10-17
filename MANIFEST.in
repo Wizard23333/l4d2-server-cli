@@ -2,7 +2,7 @@ include README.md LICENSE THIRD_PARTY_NOTICES.md CHANGELOG.md CONTRIBUTING.md SE
 include pyproject.toml .gitignore .gitattributes
 include bin/l4d2
 recursive-include .github *.yml *.md
-recursive-include src *.py *.in *.json LICENSE
+recursive-include src *.py *.in *.json *.sp LICENSE
 recursive-include tests *.py
 recursive-include scripts *.py *.md *.json *.txt *.spec *.in *.sh
 recursive-include docs *.md *.json

@@ -202,11 +202,21 @@ def validate_game_tree(root: Path) -> dict:
     return {"maps": maps, "game_build": game_build(root)}
 
 
-def installed_maps(root: Path) -> list[str]:
+def installed_maps(root: Path, *, custom: bool = False) -> list[str]:
     """Official DLC campaigns can live outside the base game's maps directory."""
     folders = [root / "left4dead2", root / "update", *root.glob("left4dead2_dlc[0-9]*")]
-    return sorted({path.stem for folder in folders for path in (folder / "maps").glob("*.bsp")
-                   if path.is_file() and not path.is_symlink() and path.stem in OFFICIAL_MAPS})
+    maps = {path.stem for folder in folders for path in (folder / "maps").glob("*.bsp")
+            if path.is_file() and not path.is_symlink() and (custom or path.stem in OFFICIAL_MAPS)}
+    if not custom:
+        return sorted(maps)
+    from .ops import vpk
+    for path in (root / "left4dead2/addons").glob("*.vpk"):
+        if vpk.is_archive_part(path):
+            continue
+        for item in vpk.entries(path):
+            if item['name'].lower().startswith('maps/') and item['name'].lower().endswith('.bsp'):
+                maps.add(Path(item['name']).stem)
+    return sorted(maps)
 
 
 def validate_bootstrap(path: Path, expected: str | None = None, deadline: float | None = None) -> dict:

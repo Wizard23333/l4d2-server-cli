@@ -119,13 +119,13 @@ def udp_owner(port: int, main_pid: int, timeout: float = 5) -> bool | None:
     return False
 
 
-def service_info(timeout: float = 10) -> dict:
+def service_info(timeout: float = 10, *, service: str = SERVICE) -> dict:
     properties = ["LoadState", "ActiveState", "SubState", "MainPID", "InvocationID",
                   "ExecMainStartTimestamp", "NRestarts", "ExecMainStatus", "UnitFileState", "ControlGroup",
                   "User", "Group", "FragmentPath", "DropInPaths"]
-    response = run(["systemctl", "show", SERVICE, "--no-pager", "--property=" + ",".join(properties)], check=False, timeout=timeout)
+    response = run(["systemctl", "show", service, "--no-pager", "--property=" + ",".join(properties)], check=False, timeout=timeout)
     if response.returncode:
-        raise CliError(f"Cannot query {SERVICE}: {response.stdout}", "service_query_failed")
+        raise CliError(f"Cannot query {service}: {response.stdout}", "service_query_failed")
     result = dict(line.split("=", 1) for line in response.stdout.splitlines() if "=" in line)
     for key in ("MainPID", "NRestarts", "ExecMainStatus"):
         result[key] = int(result[key]) if result.get(key, "").isdigit() else None

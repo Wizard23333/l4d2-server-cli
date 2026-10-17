@@ -10,6 +10,7 @@ a = Analysis(
     pathex=[str(root / "src")],
     binaries=[],
     datas=[(str(root / "src/l4d2_cli/templates"), "l4d2_cli/templates"),
+           (str(root / "src/l4d2_cli/ops/assets"), "l4d2_cli/ops/assets"),
            (str(root / "src/l4d2_cli/_vendor/tomli/LICENSE"), "l4d2_cli/_vendor/tomli"),
            (str(root / "src/l4d2_cli/_vendor/tomli/SOURCE.json"), "l4d2_cli/_vendor/tomli")],
     hiddenimports=[], hookspath=[], runtime_hooks=[],

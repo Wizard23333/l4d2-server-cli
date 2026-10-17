@@ -34,7 +34,7 @@ sudo l4d2 server restart --yes
 
 默认绑定全部网卡时，CLI 通过无发包的路由查询选取本机 IPv4 执行 A2S；实际网卡查询成功后才算就绪。本机 IPv4 不作为公网地址，外网查询/客户端连接另验。
 
-显式 difficulty 只用于 coop；versus 使用游戏默认人数与难度。仅接受已存在的官方地图（base 与官方 DLC）；c14 暂限定 coop，实际兼容性待验收。
+显式 difficulty 只用于 coop；versus 使用游戏默认人数与难度。开发源码接受已安装的官方或自定义地图，名称经过校验，并扫描 loose BSP 与启用的 VPK；c14 暂限定 coop，实际兼容性待验收。
 
 密码文件必须无符号链接、无组/其他用户权限、最大 1024 字节；密码最大 256 字符，允许末尾一行换行，内部控制字符不允许。向导空输入保留原密码；清除用显式 clear 参数。
 
@@ -65,7 +65,7 @@ sudo l4d2 server configure --visibility public --yes
 sudo l4d2 server restart --yes
 ```
 
-组 ID 只接受单个短十进制正整数（1..4294967295），不接收 groupID64、URL、多组列表、负数或配置文本。`--visibility public` 与 `--steam-group-id` 同时给出会拒绝；group 首次选择时需要 ID，已有组模式可保留原 ID。仅更改名称/地图等参数不会清除组配置。
+组 ID 只接受单个短十进制正整数（1..4294967295），不接收 groupID64、URL、多组列表、负数或配置文本。开发源码允许显式组合 `--visibility public --steam-group-id YOUR_SHORT_GROUP_ID`，表示关联组但不限制公开加入；单独 `server configure --visibility public` 继续清空组 ID。group 首次选择时需要 ID，已有组模式可保留原 ID。仅更改名称/地图等参数不会清除组配置。
 
 status 的 `desired_config` 显示已保存设置，`running_config` 显示由 CLI 记录的当前运行设置；无法确定运行版本时为 null。运行中保存新模式不会重启，`configuration_pending=true`，连接指南继续按当前运行模式提供；重启成功后才清除 pending。group 模式的 `connection.player_command=null`、`join_method=steam_group_lobby`，不会提供会被大厅限制拒绝的直连指令。
 

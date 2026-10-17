@@ -29,10 +29,9 @@ class VisibilityModelTests(unittest.TestCase):
                 self.assertIn('sv_lan "0"', rendered)
                 self.assertIn('sv_password ""', rendered)
 
-    def test_missing_group_and_conflicting_public_configuration_are_rejected(self):
+    def test_unknown_visibility_and_missing_group_are_rejected(self):
         for selected, code in [(config(visibility="hidden"), "invalid_visibility"),
-                               (config(visibility="group"), "steam_group_required"),
-                               (config(steam_group_id="123"), "invalid_group_settings")]:
+                               (config(visibility="group"), "steam_group_required")]:
             with self.subTest(code=code), self.assertRaises(CliError) as caught:
                 selected.validate()
             self.assertEqual(caught.exception.code, code)
@@ -87,11 +86,17 @@ class VisibilityInputsTests(unittest.TestCase):
 
     def test_missing_or_ambiguous_cli_settings_fail_before_configuration(self):
         for flags, code in [(["--visibility", "group"], "steam_group_required"),
-                            (["--visibility", "public", "--steam-group-id", "123"], "invalid_group_settings"),
                             (["--steam-group-id", "1,2"], "invalid_steam_group_id")]:
             with self.subTest(flags=flags), self.assertRaises(CliError) as caught:
                 self.inputs(flags)
             self.assertEqual(caught.exception.code, code)
+
+    def test_public_can_explicitly_keep_a_group_without_restricting_joins(self):
+        selected, private = self.inputs(['--visibility', 'public', '--steam-group-id', '123'])
+        rendered = model.render_cfg(selected, private)
+        self.assertIn('sv_steamgroup "123"', rendered)
+        self.assertIn('sv_steamgroup_exclusive "0"', rendered)
+        self.assertIn('sv_allow_lobby_connect_only "0"', rendered)
 
     def test_wizard_can_select_group_and_switch_back_to_public(self):
         args = cli.parser().parse_args(["server", "configure", "--yes"])

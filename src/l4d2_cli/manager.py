@@ -133,8 +133,8 @@ def configure(config: Config, secrets: dict, *, dry_run: bool, yes: bool) -> dic
         raise CliError("Vanilla L4D2 truncates non-ASCII server names. Use an ASCII --name in this version.",
                        "unsupported_server_name", 2)
     target = game_path(config.game_dir)
-    if config.map not in packages.installed_maps(target):
-        raise CliError("Selected official map is not installed.", "map_not_installed", 2)
+    if config.map not in packages.installed_maps(target, custom=True):
+        raise CliError("Selected map is not installed.", "map_not_installed", 2)
     info = host.service_info()
     host.verify_service(info)
     live = running_config(old, state, info) if info.get("MainPID") else old
@@ -182,7 +182,7 @@ def _start(config: Config, state: dict, deadline: float) -> dict:
             return {"already_running": True, **existing}
         raise CliError("Service is already running but not verified ready. Inspect doctor/logs or request a restart.", "running_not_ready", 4, existing)
     host.check_udp_available(config.bind, config.port)
-    if config.map not in packages.installed_maps(game_path(config.game_dir)):
+    if config.map not in packages.installed_maps(game_path(config.game_dir), custom=True):
         raise CliError("Configured map is missing.", "map_not_installed", 2)
     host.systemctl("daemon-reload", deadline_remaining(deadline))
     host.verify_service(host.service_info(timeout=min(5, deadline_remaining(deadline))))

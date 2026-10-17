@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import codecs
+import contextvars
 from collections import deque
 import os
 import re
@@ -52,6 +53,7 @@ class Redactor:
 
 
 REDACTOR = Redactor()
+JSON_CONFIRMATION = contextvars.ContextVar('l4d2_json_confirmation', default=False)
 
 
 def progress(text: str) -> None:
@@ -80,7 +82,7 @@ def confirm(message: str, yes: bool = False, *, as_json: bool = False) -> None:
     progress(message)
     if yes:
         return
-    if as_json or not sys.stdin.isatty():
+    if as_json or JSON_CONFIRMATION.get() or not sys.stdin.isatty():
         raise CliError("Confirmation required; review the plan then use --yes.", "confirmation_required", 5)
     if input("Continue? [y/N] ").strip().lower() not in {"y", "yes"}:
         raise CliError("Operation cancelled.", "declined", 5)

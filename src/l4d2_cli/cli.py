@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from . import __version__, auth, depot, host, installer, manager, network, packages, steam, storage
-from .common import CliError, REDACTOR, confirm, positive, progress, result
+from .common import CliError, JSON_CONFIRMATION, REDACTOR, confirm, positive, progress, result
 from .model import STEAMCMD_URL, Source, cfg_quote
 
 
@@ -47,7 +47,7 @@ def get_source(args) -> Source:
 
 
 def parser() -> Parser:
-    root = Parser(prog="l4d2", description="Vanilla Left 4 Dead 2 dedicated server CLI (development version)")
+    root = Parser(prog="l4d2", description="Left 4 Dead 2 dedicated server operations CLI (development version)")
     root.add_argument("--version", action="version", version=f"l4d2-server-cli {__version__}")
     groups = root.add_subparsers(dest="group")
     doctor = groups.add_parser("doctor", help="Read-only host, network and local game diagnosis")
@@ -113,6 +113,8 @@ def parser() -> Parser:
     logs.add_argument("--lines", type=int, default=100)
     logs.add_argument("--since", help="ISO date or datetime")
     logs.add_argument("--follow", action="store_true", help="Stream until Ctrl+C")
+    from .ops.cli import register
+    register(groups, net)
     return root
 
 
@@ -143,9 +145,6 @@ def configured_inputs(args):
                 if getattr(args, key) is not None}
     if args.steam_group_id is not None and args.visibility is None:
         settings["visibility"] = "group"
-    if args.steam_group_id is not None and args.visibility == "public":
-        raise CliError("Do not combine --visibility public with --steam-group-id. Public mode clears the group.",
-                       "invalid_group_settings", 2)
     private_changes = any(getattr(args, f"{key}_password_file") or getattr(args, f"clear_{key}_password") for key in ("join", "rcon"))
     if not settings and not private_changes and not args.dry_run:
         if args.json or not sys.stdin.isatty():
@@ -178,7 +177,7 @@ def configured_inputs(args):
             secrets[f"{key}_password"] = password_file(filename)
         if getattr(args, f"clear_{key}_password"):
             secrets.pop(f"{key}_password", None)
-    if settings.get("visibility") == "public":
+    if settings.get("visibility") == "public" and args.steam_group_id is None:
         settings["steam_group_id"] = ""
     config = replace(old, **settings)
     if args.difficulty is not None and config.mode == "versus":
@@ -188,6 +187,9 @@ def configured_inputs(args):
 
 
 def dispatch(args) -> dict:
+    from .ops.cli import GROUPS, dispatch as operations_dispatch
+    if args.group in GROUPS or (args.group == 'network' and args.action != 'check'):
+        return operations_dispatch(args)
     if args.group == "auth":
         if args.method == "qr":
             if args.steamcmd_path or args.steamcmd_archive or args.sha256 or args.steam_tcp:
@@ -245,7 +247,7 @@ def dispatch(args) -> dict:
     raise CliError("Unknown command.", "invalid_arguments", 2)
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     as_json = "--json" in argv
     command = "l4d2"
@@ -272,3 +274,12 @@ def main(argv: list[str] | None = None) -> int:
         error = CliError(f"Internal error ({type(exc).__name__}); inspect recorded state before retrying.", "internal_error")
     result(command, error.details, as_json=as_json, error=error)
     return error.exit_code
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    confirmation_context = JSON_CONFIRMATION.set('--json' in arguments)
+    try:
+        return _main(arguments)
+    finally:
+        JSON_CONFIRMATION.reset(confirmation_context)

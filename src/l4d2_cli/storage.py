@@ -46,6 +46,10 @@ def reject_links(path: Path) -> None:
 
 
 def atomic_write(path: Path, data: bytes, mode: int = 0o644, gid: int = -1) -> None:
+    if os.name == 'posix':
+        from .ops.base import replace_file
+        replace_file(path, data, mode, gid=gid)
+        return
     reject_links(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".l4d2-", dir=path.parent)
