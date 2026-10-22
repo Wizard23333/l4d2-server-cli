@@ -136,6 +136,13 @@ def unpack_tar(source, destination):
 
 
 def stack(room, metamod=None, sourcemod=None, component='core', dry_run=False, yes=False, timeout=1800):
+    if component == 'all':
+        early = base.prepare({'action': 'install-plugin-stack', 'components': ['core', 'left4dhooks'],
+                              'affected_rooms': rooms.affected(room), 'restarts_server': False}, dry_run, yes)
+        if early:
+            return early
+        return {'components': [stack(room, metamod, sourcemod, 'core', yes=True, timeout=timeout),
+                               stack(room, component='left4dhooks', yes=True, timeout=timeout)], 'restarts_server': False}
     if component not in {'core', 'left4dhooks'}:
         raise CliError('Unknown plugin stack component.', 'invalid_component', 2)
     early = base.prepare({'action': 'install-plugin-stack', 'component': component,
@@ -167,16 +174,24 @@ def stack(room, metamod=None, sourcemod=None, component='core', dry_run=False, y
             (extracted / 'addons/metamod.vdf').parent.mkdir(parents=True, exist_ok=True)
             (extracted / 'addons/metamod.vdf').write_text('"Plugin"\n{\n"file" "../left4dead2/addons/metamod/bin/server"\n}\n')
         else:
-            archive = transport.download('https://github.com/SilvDev/Left4DHooks/archive/refs/heads/main.zip', stage / 'hooks.zip', timeout)
+            archive = transport.download('https://codeload.github.com/SilvDev/Left4DHooks/zip/refs/heads/main', stage / 'hooks.zip', timeout)
             with zipfile.ZipFile(archive) as zipped:
                 paths = content.safe_unpack_zip(zipped, stage / 'hooks')
             for path in paths:
                 parts = path.relative_to(stage / 'hooks').parts
                 if 'addons' in parts:
                     relative = Path(*parts[parts.index('addons'):])
-                    destination = base.inside(extracted, relative.as_posix())
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(path, destination)
+                elif len(parts) >= 3 and parts[1] == 'sourcemod':
+                    relative = Path('addons', *parts[1:])
+                else:
+                    continue
+                destination = base.inside(extracted, relative.as_posix())
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+            required = ['plugins/left4dhooks.smx', 'gamedata/left4dhooks.l4d2.txt',
+                        'scripting/include/left4dhooks.inc']
+            if any(not (extracted / 'addons/sourcemod' / name).is_file() for name in required):
+                raise CliError('Left4DHooks archive is missing required runtime files.', 'invalid_archive', 4)
         writes = []
         game = rooms.game(room)
         for path in extracted.rglob('*'):

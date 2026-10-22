@@ -19,6 +19,9 @@ secrets.toml
 /serverfiles/
 /backups/
 .test-tmp/
+/.worktrees/
+/web/frontend/node_modules/
+/web/frontend/dist/
 
 # Local assistant/editor state and release output
 .workbuddy/

@@ -46,7 +46,8 @@ def inspect_archive(path, root):
             fail("member_under_symlink")
         required = {"l4d2", "install.sh", "build-info.json", "FILES.sha256", "INSTALL.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
                     "licenses/PyInstaller-COPYING.txt", "licenses/python-runtime/CPython-LICENSE.txt",
-                    "_internal/l4d2_cli/templates/l4d2-main.service.in"}
+                    "_internal/l4d2_cli/templates/l4d2-main.service.in",
+                    "_internal/l4d2_cli/skills/l4d2-manager/SKILL.md"}
         if not required.issubset(payloads):
             return issues + ["missing_bundle_files"]
         executable = payloads["l4d2"]
@@ -86,6 +87,9 @@ def inspect_archive(path, root):
         template = "_internal/l4d2_cli/templates/l4d2-main.service.in"
         if payloads[template] != (root / "src/l4d2_cli/templates/l4d2-main.service.in").read_bytes():
             fail("template_mismatch")
+        skill = "_internal/l4d2_cli/skills/l4d2-manager/SKILL.md"
+        if payloads[skill] != (root / "src/l4d2_cli/skills/l4d2-manager/SKILL.md").read_bytes():
+            fail("skill_mismatch")
     return sorted(set(issues))
 
 

@@ -3,6 +3,13 @@ include pyproject.toml .gitignore .gitattributes
 include bin/l4d2
 recursive-include .github *.yml *.md
 recursive-include src *.py *.in *.json *.sp LICENSE
+recursive-include src/l4d2_cli/skills SKILL.md
+recursive-include src/l4d2_cli/web/static *.html *.js *.css *.svg
+recursive-include web/frontend *.tsx *.ts *.css *.html *.json *.mjs
+recursive-include web/frontend/public *.js
+recursive-include src/l4d2_cli/web/licenses *.txt
+prune web/frontend/node_modules
+prune web/frontend/dist
 recursive-include tests *.py
 recursive-include scripts *.py *.md *.json *.txt *.spec *.in *.sh
 recursive-include docs *.md *.json

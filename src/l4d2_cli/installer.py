@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import time
 import uuid
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from . import host, network, packages, steam, storage
@@ -198,11 +198,16 @@ def prepare_managed_tool(source: Source, state: dict, uid: int, gid: int,
     return steam.validate_tool(PATHS.steamcmd)
 
 
-def install_plan(directory: str | None, source: Source, timeout: float) -> tuple[dict, Config, dict]:
+def install_plan(directory: str | None, source: Source, timeout: float,
+                 initial_config: Config | None = None) -> tuple[dict, Config, dict]:
     host.require_platform()
     source.validate()
     state = storage.read_json(PATHS.state)
     config = registered_config()
+    # The setup wizard can choose a free port before the first installation.
+    # Registered retries always retain the original installation configuration.
+    if not state and initial_config is not None:
+        config = replace(initial_config)
     if directory:
         config.game_dir = str(game_path(directory))
     config.validate()
@@ -218,6 +223,7 @@ def install_plan(directory: str | None, source: Source, timeout: float) -> tuple
             (PATHS.steamcmd / "steamcmd.sh").is_file()):
         network_source = Source(steamcmd_path=str(PATHS.steamcmd / "steamcmd.sh"))
     plan = {"target": str(target), "service": SERVICE, "source": source.kind, "offline": source.offline,
+            "configuration": asdict(config),
             "installed": state.get("status") == "installed", "missing_dependencies": missing,
             "refreshes_private_steamcmd": not budget["resume_runtime_validation"] and refresh_tool_requested(source, state),
             "preserves_previous_tool": not budget["resume_runtime_validation"] and refresh_tool_requested(source, state),
@@ -302,10 +308,11 @@ def apply_configuration(config: Config, secrets: dict, state: dict, gid: int, de
 
 
 def install(directory: str | None, source: Source, *, dry_run: bool, yes: bool,
-            timeout: float, steam_user: str = "anonymous", steam_tcp: bool = False) -> dict:
+            timeout: float, steam_user: str = "anonymous", steam_tcp: bool = False,
+            initial_config: Config | None = None) -> dict:
     steam.validate_login_name(steam_user)
     deadline = time.monotonic() + timeout
-    plan, config, state = install_plan(directory, source, deadline_remaining(deadline))
+    plan, config, state = install_plan(directory, source, deadline_remaining(deadline), initial_config)
     if dry_run:
         return {"dry_run": True, "plan": plan}
     host.require_root()

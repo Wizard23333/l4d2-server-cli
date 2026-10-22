@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import contextlib
 import contextvars
+import http.client
 import socket
 import time
 import urllib.error
@@ -62,8 +63,9 @@ class Redirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(request, fp, code, msg, headers, newurl)
 
 
-def opener():
-    proxy = settings().get('proxy', '')
+def opener(download=False):
+    config = settings()
+    proxy = '' if download and config.get('direct_downloads', False) else config.get('proxy', '')
     return urllib.request.build_opener(Redirects(), urllib.request.ProxyHandler(
         {'http': proxy, 'https': proxy} if proxy else {}))
 
@@ -77,7 +79,7 @@ def fetch_bytes(url, data=None, timeout=30, limit=8 * 1024**2):
             if len(result) > limit:
                 raise CliError('Source response exceeds size limit.', 'response_too_large', 4)
             return result
-    except (OSError, urllib.error.HTTPError) as exc:
+    except (OSError, urllib.error.HTTPError, http.client.HTTPException) as exc:
         raise CliError('Content request failed: ' + type(exc).__name__, 'download_failed', 4) from None
 
 
@@ -98,7 +100,7 @@ def download(url, destination, timeout=600, expected=0):
             budget = deadline - time.monotonic()
             if budget <= 0:
                 raise CliError('Download timed out.', 'timeout', 124)
-            with opener().open(urllib.request.Request(url, headers=headers), timeout=min(30, budget)) as response:
+            with opener(download=True).open(urllib.request.Request(url, headers=headers), timeout=min(30, budget)) as response:
                 resume = offset and response.status == 206 and response.headers.get('Content-Range', '').startswith('bytes %d-' % offset)
                 if not resume:
                     offset = 0
@@ -133,7 +135,7 @@ def download(url, destination, timeout=600, expected=0):
                 raise OSError('incomplete download')
             partial.replace(destination)
             return destination
-        except (OSError, urllib.error.HTTPError):
+        except (OSError, urllib.error.HTTPError, http.client.HTTPException):
             if attempt == 2 or time.monotonic() >= deadline:
                 raise CliError('Download failed after bounded retries; partial content retained.', 'download_failed', 4) from None
     raise CliError('Download failed.', 'download_failed', 4)

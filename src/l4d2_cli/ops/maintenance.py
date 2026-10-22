@@ -150,8 +150,10 @@ def network_writes(values):
 
 
 def network_configure(proxy_file=None, api_key_file=None, clear_proxy=False, hosts_file=None,
-                      ipv4=None, dry_run=False, yes=False):
+                      ipv4=None, dry_run=False, yes=False, direct_downloads=None):
     values = transport.settings()
+    if direct_downloads is not None:
+        values['direct_downloads'] = direct_downloads
     if proxy_file:
         path = base.regular(proxy_file)
         if path.stat().st_mode & 0o077:
@@ -181,6 +183,7 @@ def network_configure(proxy_file=None, api_key_file=None, clear_proxy=False, hos
         network['gai'] = 'precedence ::ffff:0:0/96 100' if ipv4 else ''
     writes = network_writes(network)
     early = base.prepare({'action': 'configure-network', 'proxy_configured': bool(values.get('proxy')),
+                          'direct_downloads': bool(values.get('direct_downloads', False)),
                           'api_key_configured': bool(values.get('steam_web_api_key')),
                           'system_files': [str(w[0]) for w in writes]}, dry_run, yes)
     if early:
@@ -205,6 +208,7 @@ def network_status():
             reachable = False
     from .backup import NETWORK
     return {'proxy_configured': bool(proxy), 'proxy_tcp_reachable': reachable,
+            'direct_downloads': bool(values.get('direct_downloads', False)),
             'steam_web_api_key_configured': bool(values.get('steam_web_api_key')),
             'ipv4_preferred': NETWORK['gai'].exists() and 'precedence ::ffff:0:0/96 100' in NETWORK['gai'].read_text(),
             'steam_protocol_verified': False}

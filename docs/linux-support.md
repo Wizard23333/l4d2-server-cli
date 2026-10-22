@@ -2,6 +2,8 @@
 
 CLI管理Linux x86_64专用服务器，要求glibc和实际运行的systemd。ARM、Alpine/musl、无systemd容器及Windows原生服务管理不受支持。
 
+可选 `skill` 命令仅处理本地 Agent 指令文件，可在 Windows/Linux/macOS 的 Python 3.8+ 源码或 wheel 中运行，无需游戏或 systemd。此例外不扩展服务器运维平台范围，详见 [Agent Skill](agent-skill.md)。
+
 ## CLI运行方式
 
 | 安装方式 | Python要求 | libc要求 |

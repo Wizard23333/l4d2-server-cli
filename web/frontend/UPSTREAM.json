@@ -1,0 +1,1 @@
+{"repository":"L4D2-Server-Manager-Skill","branch":"frontend-redesign","commit":"6d4817f","path":"deploy/l4d2-manager-web/frontend","license":"MIT","adaptations":"CLI-backed operations, room selection, CSRF and complete operations forms"}

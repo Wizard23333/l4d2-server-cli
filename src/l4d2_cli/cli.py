@@ -47,9 +47,22 @@ def get_source(args) -> Source:
 
 
 def parser() -> Parser:
-    root = Parser(prog="l4d2", description="Left 4 Dead 2 dedicated server operations CLI (development version)")
+    root = Parser(prog="l4d2", description="Left 4 Dead 2 dedicated server operations CLI")
     root.add_argument("--version", action="version", version=f"l4d2-server-cli {__version__}")
     groups = root.add_subparsers(dest="group")
+    setup = groups.add_parser("setup", help="Guided first server: preview, install, configure, start and joining instructions")
+    setup.add_argument("--dir", metavar="PATH", help="New game directory, or the registered installation to resume")
+    setup.add_argument("--name", help="ASCII server name")
+    setup.add_argument("--port", type=int)
+    setup.add_argument("--map", help="Official map; defaults to Dead Center for a new server")
+    setup.add_argument("--difficulty", choices=("easy", "normal", "hard", "impossible"))
+    setup.add_argument("--visibility", choices=("public", "group"))
+    setup.add_argument("--steam-group-id", metavar="GROUP_ID")
+    setup.add_argument("--no-start", action="store_true", help="Install and save settings; leave the server stopped")
+    setup.add_argument("--steam-user", default="anonymous", help="Download account with an already verified private SteamCMD cache")
+    setup.add_argument("--steam-tcp", action="store_true")
+    source_flags(setup)
+    output_flags(setup, timeout=3600, changes=True, confirmation=True)
     doctor = groups.add_parser("doctor", help="Read-only host, network and local game diagnosis")
     output_flags(doctor)
     net = groups.add_parser("network", help="Installation network preflight").add_subparsers(dest="action", required=True)
@@ -115,6 +128,10 @@ def parser() -> Parser:
     logs.add_argument("--follow", action="store_true", help="Stream until Ctrl+C")
     from .ops.cli import register
     register(groups, net)
+    from .web.cli import register as register_web
+    register_web(groups)
+    from .agent_skill import register as register_skill
+    register_skill(groups)
     return root
 
 
@@ -187,6 +204,15 @@ def configured_inputs(args):
 
 
 def dispatch(args) -> dict:
+    if args.group == 'setup':
+        from .onboarding import setup
+        return setup(args)
+    if args.group == 'skill':
+        from .agent_skill import dispatch as skill_dispatch
+        return skill_dispatch(args)
+    if args.group == 'web':
+        from .web.cli import dispatch as web_dispatch
+        return web_dispatch(args)
     from .ops.cli import GROUPS, dispatch as operations_dispatch
     if args.group in GROUPS or (args.group == 'network' and args.action != 'check'):
         return operations_dispatch(args)
@@ -249,7 +275,7 @@ def dispatch(args) -> dict:
 
 def _main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    as_json = "--json" in argv
+    as_json = "--json" in argv or argv[:2] == ['web', '_bridge']
     command = "l4d2"
     try:
         interface = parser()
@@ -259,7 +285,9 @@ def _main(argv: list[str] | None = None) -> int:
             return 0
         command = " ".join(["l4d2", args.group, *([args.action] if hasattr(args, "action") else [])])
         data = dispatch(args)
-        if data or args.group != "server" or args.action != "logs":
+        if args.group == 'skill' and args.action == 'show' and not as_json:
+            print(data['content'], end='')
+        elif data or args.group != "server" or args.action != "logs":
             result(command, data, as_json=as_json)
         return 0
     except KeyboardInterrupt:

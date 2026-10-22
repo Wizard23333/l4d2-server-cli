@@ -71,22 +71,26 @@ def register(groups, network):
         search.add_argument('query')
         resolve = flags(sub.add_parser('resolve'), room=False)
         resolve.add_argument('id')
+        resolve.add_argument('--download-links', action='store_true', help='Include resolved public content URLs for client-side downloads')
         install = flags(sub.add_parser('install'), mutate=True, timeout=True)
         install.add_argument('id')
         install.add_argument('--source', choices=('workshop', 'gamemaps'), default='workshop')
         imported = flags(sub.add_parser('import'), mutate=True)
         imported.add_argument('--file', required=True)
         imported.add_argument('--name')
+        imported.add_argument('--workshop-id', help='Verify a local VPK against this Workshop part and retain its source')
         remove = flags(sub.add_parser('remove'), mutate=True)
         remove.add_argument('filename')
         remove.add_argument('--purge', action='store_true')
+        forget = flags(sub.add_parser('forget'), mutate=True)
+        forget.add_argument('filename')
         reinstall = flags(sub.add_parser('reinstall'), mutate=True, timeout=True)
         reinstall.add_argument('filename')
-        if group == 'addon':
+        if group in {'map', 'addon'}:
             for state in ('enable', 'disable'):
                 item = flags(sub.add_parser(state), mutate=True)
                 item.add_argument('filename')
-        else:
+        if group == 'map':
             for action in ('default', 'change'):
                 item = flags(sub.add_parser(action), mutate=True, timeout=action == 'change')
                 item.add_argument('map')
@@ -105,7 +109,7 @@ def register(groups, network):
         item = flags(sub.add_parser(state), mutate=True)
         item.add_argument('filename')
     stack = flags(sub.add_parser('stack'), mutate=True, timeout=True)
-    stack.add_argument('--component', choices=('core', 'left4dhooks'), default='core')
+    stack.add_argument('--component', choices=('core', 'left4dhooks', 'all'), default='core')
     stack.add_argument('--metamod-archive')
     stack.add_argument('--sourcemod-archive')
     compile_parser = flags(sub.add_parser('compile'), mutate=True)
@@ -128,6 +132,7 @@ def register(groups, network):
     sub = groups.add_parser('task', help='Persistent operations without a web server').add_subparsers(dest='action', required=True)
     flags(sub.add_parser('list'), room=False)
     submit = flags(sub.add_parser('submit'), mutate=True, room=False)
+    submit.add_argument('--detach-service', action='store_true', help='Use an independent transient systemd worker (for web/service callers)')
     import argparse
     submit.add_argument('arguments', nargs=argparse.REMAINDER, help='-- followed by a mutating CLI operation')
     for action in ('show', 'logs', 'cancel', 'retry', 'delete', '_run'):
@@ -137,7 +142,7 @@ def register(groups, network):
             item.add_argument('--lines', type=int, default=100)
     sub = groups.add_parser('transfer', help='Content manifests and offline ZIP transfers').add_subparsers(dest='action', required=True)
     for action in ('export', 'import'):
-        item = flags(sub.add_parser(action), mutate=action == 'import')
+        item = flags(sub.add_parser(action), mutate=True)
         item.add_argument('--format', choices=('manifest', 'zip') if action == 'export' else ('manifest', 'zip', 'legacy'), default='manifest')
         item.add_argument('--output' if action == 'export' else '--file', required=True)
         if action == 'export':
@@ -171,6 +176,11 @@ def register(groups, network):
     proxy = item.add_mutually_exclusive_group()
     proxy.add_argument('--proxy-file')
     proxy.add_argument('--clear-proxy', action='store_true')
+    downloads = item.add_mutually_exclusive_group()
+    downloads.add_argument('--direct-downloads', dest='direct_downloads', action='store_true', default=None,
+                           help='Use the proxy for source metadata, download installation files directly')
+    downloads.add_argument('--proxy-downloads', dest='direct_downloads', action='store_false',
+                           help='Use the configured proxy for installation files too (default)')
     item.add_argument('--steam-api-key-file')
     item.add_argument('--hosts-file')
     ip = item.add_mutually_exclusive_group()
@@ -189,7 +199,9 @@ def _dispatch(args):
     group, action = args.group, getattr(args, 'action', None)
     if group == 'capabilities':
         return {'contract_version': 1, 'groups': sorted(GROUPS - {'capabilities'}),
-                'network': ['check', 'status', 'configure'], 'web_required': False,
+                'network': ['check', 'status', 'configure'], 'onboarding': ['setup'], 'web_required': False,
+                'optional_frontends': {'web': ['install', 'configure', 'start', 'stop', 'restart', 'status', 'check', 'logs', 'uninstall'],
+                                       'skill': ['show', 'export', 'list', 'status', 'install', 'update', 'uninstall']},
                 'mutation_contract': ['dry_run', 'confirmation', 'operation_lock', 'secret_redaction']}
     host.require_platform()
     options = {'dry_run': getattr(args, 'dry_run', False), 'yes': getattr(args, 'yes', False)}
@@ -198,7 +210,8 @@ def _dispatch(args):
         if action == 'list':
             return tasks.list_tasks()
         if action == 'submit':
-            return tasks.submit(args.arguments[1:] if args.arguments[:1] == ['--'] else args.arguments, **options)
+            return tasks.submit(args.arguments[1:] if args.arguments[:1] == ['--'] else args.arguments,
+                                detached=args.detach_service, **options)
         if action == '_run':
             return tasks.worker(args.id)
         if action == 'show':
@@ -216,7 +229,7 @@ def _dispatch(args):
         if action == 'status':
             return maintenance.network_status()
         return maintenance.network_configure(args.proxy_file, args.steam_api_key_file, args.clear_proxy,
-                                              args.hosts_file, args.ipv4, **options)
+                                              args.hosts_file, args.ipv4, direct_downloads=args.direct_downloads, **options)
     if group == 'room':
         if action == 'list':
             return {'rooms': [{key: value for key, value in room.items() if key != 'hashes'} for room in rooms.all_rooms().values()]}
@@ -236,7 +249,8 @@ def _dispatch(args):
             result = catalog.workshop_expected_parts(args.id, kind)
             # Direct links are used internally; public metadata is sufficient for frontends.
             for item in result.get('parts', []):
-                item.pop('file_url', None)
+                if not args.download_links:
+                    item.pop('file_url', None)
             return result
         if action == 'verify':
             return vpk.verify(args.file)
@@ -300,7 +314,11 @@ def _dispatch(args):
         if action == 'install':
             return content.install(room, args.source, args.id, kind, args.timeout, **options)
         if action == 'import':
+            if args.workshop_id:
+                return content.import_workshop(room, args.file, kind, args.workshop_id, final_name=args.name, **options)
             return content.install_local(room, args.file, kind, final_name=args.name, **options)
+        if action == 'forget':
+            return content.forget(room, args.filename, **options)
         if action in {'enable', 'disable'}:
             return content.state(room, args.filename, action == 'enable', **options)
         if action == 'remove':
@@ -334,6 +352,10 @@ def _dispatch(args):
         return rcon.command(room, path.read_text(encoding='utf-8').strip(), args.timeout, **options)
     if group == 'transfer':
         if action == 'export':
+            early = base.prepare({'action': 'export-content', 'room': room['id'], 'format': args.format,
+                                  'output': args.output, 'filenames': args.filename}, **options)
+            if early:
+                return early
             return (content.export_manifest if args.format == 'manifest' else content.export_zip)(room, args.output, args.filename)
         if action == 'import':
             if args.format == 'legacy':

@@ -16,7 +16,9 @@ from . import base, content, rooms
 NETWORK = {'hosts': Path('/etc/hosts'), 'gai': Path('/etc/gai.conf'),
            'cli-network': Path('/etc/l4d2-cli/network.json'),
            'panel-env': Path('/etc/l4d2-manager-web.env'),
-           'panel-packages': Path('/var/lib/l4d2-manager-web/packages.json')}
+           'panel-packages': Path('/var/lib/l4d2-manager-web/packages.json'),
+           'cli-web-config': Path('/etc/l4d2-cli/web.json'),
+           'cli-web-secrets': Path('/etc/l4d2-cli/web-secrets.json')}
 PLUGIN_ROOTS = ('addons/metamod', 'addons/sourcemod', 'cfg/sourcemod')
 
 
@@ -71,7 +73,7 @@ def create(room, output=None, scope='full', dry_run=False, yes=False):
                     part = base.inside(path.parent, base.filename(archive_name, '.vpk'))
                     selected['game/' + part.relative_to(game).as_posix()] = base.regular(part)
         for key, path in NETWORK.items():
-            if path.exists() and key in {'cli-network', 'panel-env', 'panel-packages'}:
+            if path.exists() and key in {'cli-network', 'panel-env', 'panel-packages', 'cli-web-config', 'cli-web-secrets'}:
                 selected['optional/' + key] = base.regular(path)
     sources = content.registry(room)
     manifest = {'format': 'l4d2-state-backup', 'version': 1, 'scope': scope, 'primary_room': room['id'],
@@ -189,15 +191,30 @@ def restore(room, source, expected=None, network=False, panel=False, dry_run=Fal
                 writes.append((base.inside(game, relative), stage / name, record['mode'], uid, gid))
             elif name.startswith('scripts/') and full:
                 script_name = base.filename(name[8:])
-                if not script_name.startswith('start_l4d2') or not script_name.endswith('.sh'):
+                declared = set()
+                for profile in document.get('rooms', {}).values():
+                    if profile.get('script'):
+                        original = Path(profile['script'])
+                        if Path(document['game_dir']) not in original.parents:
+                            raise CliError('Backup script is outside its registered game directory.', 'unsafe_backup', 4)
+                        declared.add(original.name)
+                if script_name not in declared or not script_name.endswith('.sh'):
                     raise CliError('Unregistered backup script.', 'unsafe_backup', 4)
                 writes.append((base.inside(Path(room['game_dir']), script_name), stage / name, record['mode'], uid, gid))
             elif name.startswith('optional/'):
                 key = name[9:]
-                if key not in {'cli-network', 'panel-env', 'panel-packages'}:
+                if key not in {'cli-network', 'panel-env', 'panel-packages', 'cli-web-config', 'cli-web-secrets'}:
                     raise CliError('Unregistered optional state.', 'unsafe_backup', 4)
                 if (key == 'cli-network' and network) or (key != 'cli-network' and panel):
-                    writes.append((NETWORK[key], stage / name, 0o644 if key == 'panel-packages' else 0o600, 0, 0))
+                    gid, mode = 0, 0o644 if key == 'panel-packages' else 0o600
+                    if key.startswith('cli-web-'):
+                        import grp
+                        try:
+                            gid = grp.getgrnam('l4d2web').gr_gid
+                        except KeyError:
+                            raise CliError('Install the optional web service before restoring its settings.', 'web_not_installed', 4) from None
+                        mode = 0o640
+                    writes.append((NETWORK[key], stage / name, mode, 0, gid))
             elif not name.startswith('units/'):
                 raise CliError('Unregistered backup member.', 'unsafe_backup', 4)
         # Remove old plugin files absent from snapshot, preserving its enabled/disabled states exactly.

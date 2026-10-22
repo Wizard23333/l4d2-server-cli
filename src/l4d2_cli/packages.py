@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .common import CliError, deadline_remaining, progress
-from .model import APP_ID, CFG_NAME, OFFICIAL_MAPS
+from .model import APP_ID, CFG_NAME, OFFICIAL_MAPS, STEAMCMD_URLS
 from .storage import reject_links, sha256
 
 BUNDLE_FORMAT = "l4d2-server-bundle"
@@ -59,10 +59,13 @@ def download(url: str, output: Path, timeout: float, max_bytes: int = 512 * 1024
     deadline = time.monotonic() + timeout
     opener = build_opener(SteamRedirect())
     last_error = ""
+    # Only the exact SteamCMD bootstrap URLs participate in CDN fallback.
+    candidates = [url] + [item for item in STEAMCMD_URLS if item != url] if url in STEAMCMD_URLS else [url]
     for attempt in range(1, 4):
+        selected = candidates[(attempt - 1) % len(candidates)]
         try:
             deadline_remaining(deadline)
-            request = Request(url, headers={"User-Agent": "l4d2-server-cli/0.1"})
+            request = Request(selected, headers={"User-Agent": "l4d2-server-cli/0.1"})
             with opener.open(request, timeout=min(10, deadline_remaining(deadline))) as response:
                 final_source = response.geturl()
                 length = response.headers.get("Content-Length")
@@ -93,11 +96,11 @@ def download(url: str, output: Path, timeout: float, max_bytes: int = 512 * 1024
             os.link(partial, output)
             partial.unlink()
             return {"path": str(output), "bytes": written, "sha256": digest, "source": final_source}
-        except CliError:
-            raise
-        except (OSError, ValueError) as exc:
+        except (CliError, OSError, ValueError) as exc:
+            if isinstance(exc, CliError) and exc.code != "invalid_download":
+                raise
             last_error = str(exc)
-            progress(f"SteamCMD archive attempt {attempt}/3 failed: {last_error}")
+            progress(f"SteamCMD archive attempt {attempt}/3 ({selected}) failed: {last_error}")
             if attempt < 3:
                 time.sleep(min(attempt, deadline_remaining(deadline)))
     raise CliError(f"Archive download failed: {last_error}. Supply --steamcmd-archive FILE instead.", "archive_download_failed")

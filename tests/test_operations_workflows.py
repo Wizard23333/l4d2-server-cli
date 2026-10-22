@@ -69,6 +69,21 @@ class MigrationTests(Sandbox):
             document = json.loads(archive.read('manifest.json'))
         self.assertEqual(document['packages']['packages']['test.vpk']['id'], '12345')
 
+    def test_backup_restores_explicitly_registered_adopted_script(self):
+        script = self.game / 'start-custom-room.sh'
+        script.write_text('#!/bin/sh\n# original launch source\n')
+        self.room['script'] = str(script)
+        base.save(base.ROOMS, {'version': 1, 'rooms': {'room1': self.room}})
+        for key in ('cli-web-config', 'cli-web-secrets'):
+            backup.NETWORK[key].write_text('{"fixture":true}')
+        report = backup.create(self.room, yes=True)
+        document = backup.inspect(report['output'])
+        self.assertIn('optional/cli-web-secrets', document['files'])
+        script.write_text('changed')
+        with patch.object(backup, 'run'):
+            backup.restore(self.room, report['output'], yes=True)
+        self.assertIn('original launch source', script.read_text())
+
     def test_backup_rejects_unregistered_destination_even_with_valid_checksum(self):
         source = self.tmp / 'unsafe.zip'
         import hashlib
@@ -143,6 +158,19 @@ class FrameworkTests(Sandbox):
         self.assertIn('../left4dead2/addons/metamod/bin/server', (rooms.game(self.room) / 'addons/metamod.vdf').read_text())
         self.assertTrue((rooms.game(self.room) / 'cfg/sourcemod/sourcemod.cfg').exists())
         self.assertTrue(result['restart_required'])
+
+    def test_left4dhooks_installs_upstream_sourcemod_root_layout(self):
+        archive = self.tmp / 'hooks.zip'
+        required = ['plugins/left4dhooks.smx', 'gamedata/left4dhooks.l4d2.txt',
+                    'scripting/include/left4dhooks.inc']
+        with zipfile.ZipFile(archive, 'w') as zipped:
+            for name in required:
+                zipped.writestr('Left4DHooks-main/sourcemod/' + name, b'fixture')
+        with patch.object(plugins.transport, 'download', return_value=archive):
+            result = plugins.stack(self.room, component='left4dhooks', yes=True)
+        self.assertEqual(result['files'], 3)
+        for name in required:
+            self.assertTrue((plugins.directory(self.room) / name).is_file())
 
     def test_tar_link_is_rejected(self):
         source = self.tmp / 'unsafe.tar'
@@ -285,6 +313,15 @@ class NetworkWorkflowTests(Sandbox):
         self.assertEqual(caught.exception.code, 'timeout')
         opener.return_value.open.assert_not_called()
 
+    def test_explicit_direct_payload_downloads_keep_metadata_proxy(self):
+        with patch.object(transport, 'settings', return_value={'proxy': 'http://localhost:1234', 'direct_downloads': True}), \
+             patch.object(transport.urllib.request, 'ProxyHandler') as handler, \
+             patch.object(transport.urllib.request, 'build_opener'):
+            transport.opener()
+            self.assertEqual(handler.call_args.args[0], {'http': 'http://localhost:1234', 'https': 'http://localhost:1234'})
+            transport.opener(download=True)
+            self.assertEqual(handler.call_args.args[0], {})
+
     def test_download_accepts_stream_without_content_length(self):
         response = io.BytesIO(b'chunked archive payload')
         response.status, response.headers = 200, {}
@@ -314,6 +351,16 @@ class NetworkWorkflowTests(Sandbox):
             with self.assertRaises(CliError) as caught:
                 transport.download('https://github.com/example/archive.zip', self.tmp/'truncated.zip')
         self.assertEqual(caught.exception.code, 'download_failed')
+
+    def test_download_retries_truncated_http_response(self):
+        import http.client
+        stream = io.BytesIO(b'complete archive')
+        stream.status, stream.headers = 200, {'Content-Length': '16'}
+        with patch.object(transport, 'opener') as opener:
+            opener.return_value.open.side_effect = [http.client.IncompleteRead(b'bad'), stream]
+            target = transport.download('https://codeload.github.com/example/archive', self.tmp/'retry.zip')
+        self.assertEqual(target.read_bytes(), b'complete archive')
+        self.assertEqual(opener.return_value.open.call_count, 2)
 
     def test_rcon_handles_fragmented_frames_and_multi_packet_reply(self):
         Path(self.room['cfg']).write_text('rcon_password "SYNTHETIC_RCON"')

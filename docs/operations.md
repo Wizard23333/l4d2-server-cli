@@ -33,6 +33,7 @@
 | `storage` | `usage / cleanup`，可清理缓存、Workshop 缓存、已结束进程遗留的临时目录 |
 | `network` | 原有 `check`，新增 `status / configure` |
 | `repair` | `mission-bom / permissions / transaction` |
+| `skill` | 可选本地 Agent 接入：`show / export / list / status / install / update / uninstall`，不要求服务器环境 |
 
 任意子命令的 `--help` 列出参数。原有安装、Steam 认证与网络预检详见 README 和对应文档。
 

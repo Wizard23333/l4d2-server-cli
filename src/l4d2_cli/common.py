@@ -69,6 +69,18 @@ def result(command: str, data: dict, *, as_json: bool = False,
     })
     if as_json:
         print(json.dumps(payload, ensure_ascii=False))
+    elif command in {"l4d2 setup", "l4d2 doctor", "l4d2 network check", "l4d2 server status"}:
+        if command == "l4d2 setup":
+            from .onboarding import format_report
+        elif command == "l4d2 doctor":
+            from .doctor_output import format_report
+        elif command == "l4d2 network check":
+            from .network_output import format_report
+        else:
+            from .status_output import format_report
+        print(format_report(payload["data"], payload["error"]))
+        for warning in payload["warnings"]:
+            progress(f"Warning: {warning}")
     else:
         if error:
             print(f"Error [{error.code}]: {payload['error']['message']}", file=sys.stderr)

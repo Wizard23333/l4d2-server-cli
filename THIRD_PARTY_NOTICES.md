@@ -14,6 +14,12 @@ No SteamCMD or game binaries are bundled with this project.
 
 The catalog/mission parsing and bundled SourcePawn sources in `src/l4d2_cli/ops/` were migrated from L4D2-Server-Manager-Skill, Copyright (c) 2026 Wizard23333, under the same MIT license as this repository. No web server or browser frontend is required by these modules. MetaMod, SourceMod and Left4DHooks are fetched only when explicitly requested and retain their respective upstream licenses; their binaries are not bundled.
 
+## Optional web frontend
+
+The optional React frontend is derived from L4D2-Server-Manager-Skill's `frontend-redesign` branch at commit `6d4817f`, Copyright (c) 2026 Wizard23333 (MIT). Source provenance is recorded in `web/frontend/UPSTREAM.json`. It is adapted to the CLI operations contract; the old privileged helper and web business logic are not bundled.
+
+The browser bundle includes React 18.2.0, ReactDOM 18.2.0 and Scheduler 0.23.0, Copyright (c) Meta Platforms, Inc. and affiliates, under MIT. Complete upstream notices are retained in `src/l4d2_cli/web/licenses/`. TypeScript, Vite and build plugins are development tools and are not runtime Python dependencies. The web frontend uses local assets and system font fallbacks.
+
 ## Optional external QR backend
 
 QR authentication/downloads can invoke SteamRE/DepotDownloader, tested with release DepotDownloader_3.4.0. It is a separate program, not bundled in the CLI source or wheel; use is governed by its upstream LICENSE.

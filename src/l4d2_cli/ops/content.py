@@ -136,10 +136,46 @@ def package(room, name):
     raise CliError('Installed package not found.', 'package_not_found', 4)
 
 
+def import_workshop(room, source, kind, item_id, final_name=None, dry_run=False, yes=False):
+    """Retain a verified source for browser/local downloads; CRC verifies payload,
+    while advertised size associates a part (it is not a publisher signature)."""
+    from . import catalog
+    catalog.initialize()
+    source = base.regular(source)
+    if not catalog.WORKSHOP_ID_RE.fullmatch(str(item_id)):
+        raise CliError('Invalid Workshop ID.', 'invalid_catalog_id', 2)
+    details = catalog.resolve_single_workshop_download(str(item_id), kind)
+    if not details.get('ok') or int(details.get('file_size') or 0) != source.stat().st_size:
+        raise CliError('Local file size does not match the selected Workshop part.', 'workshop_size_mismatch', 2)
+    vpk.verify(source)
+    metadata = {'source': 'workshop', 'id': str(item_id), 'part_id': str(item_id),
+                'install_ids': [str(item_id)], 'title': details.get('title', str(item_id))}
+    return install_local(room, source, kind, metadata, final_name=final_name, dry_run=dry_run, yes=yes)
+
+
+def forget(room, name, dry_run=False, yes=False):
+    base.filename(name, '.vpk')
+    data = registry(room)
+    record = data['packages'].get(name)
+    if not record or record.get('state') not in {'removed', 'superseded'}:
+        raise CliError('Only removed source records can be forgotten.', 'package_installed', 4)
+    early = base.prepare({'action': 'forget-package-source', 'filename': name, 'room': room['id']}, dry_run, yes)
+    if early:
+        return early
+    with storage.operation_lock():
+        data = registry(room)
+        record = data['packages'].get(name)
+        if not record or record.get('state') not in {'removed', 'superseded'}:
+            raise CliError('Source record changed.', 'package_conflict', 4)
+        del data['packages'][name]
+        base.save(registry_path(room), data)
+    return {'forgotten': name}
+
+
 def state(room, name, enabled, dry_run=False, yes=False):
     item = package(room, name)
     if item['kind'] == 'map':
-        raise CliError('Map packages contain extracted resources; use map remove/reinstall.', 'map_package_state', 4)
+        return map_state(room, item, enabled, dry_run, yes)
     desired = 'enabled' if enabled else 'disabled'
     if item['state'] == desired:
         return {'unchanged': True}
@@ -167,6 +203,83 @@ def state(room, name, enabled, dry_run=False, yes=False):
     return {'filename': name, 'state': desired, 'restart_required': True}
 
 
+def map_state(room, item, enabled, dry_run=False, yes=False):
+    """Toggle both the VPK and its tracked loose resources in one transaction."""
+    name = item['filename']
+    desired = 'enabled' if enabled else 'disabled'
+    if item['state'] == desired:
+        return {'unchanged': True}
+    if not enabled:
+        ensure_map_unused(room, item['maps'])
+    record = registry(room)['packages'].get(name)
+    if not record:
+        raise CliError('Import provenance before toggling extracted map resources.', 'untracked_package', 4)
+    source = base.regular(item['path'])
+    if record.get('sha256') and storage.sha256(source) != record['sha256']:
+        raise CliError('Map package changed since installation.', 'resource_conflict', 4)
+    target = base.inside(rooms.game(room) / ('addons' if enabled else 'addons_disabled'), name)
+    if target.exists():
+        raise CliError('Package state destination exists.', 'target_conflict', 4)
+    early = base.prepare({'action': 'map-package-state', 'filename': name, 'state': desired,
+                          'affected_rooms': rooms.affected(room), 'restarts_server': False}, dry_run, yes)
+    if early:
+        return early
+    uid, gid = base.account(room['user'], room.get('group'))
+    vpk.verify(source)
+    with base.staging('map-state-') as stage:
+        extracted = vpk.extract(source, stage) if enabled else []
+        with storage.operation_lock():
+            data = registry(room)
+            record = data['packages'].get(name)
+            if not record or record.get('state') != item['state']:
+                raise CliError('Map state changed while preparing.', 'package_conflict', 4)
+            if not enabled:
+                ensure_map_unused(room, item['maps'])
+            writes = [(target, source, 0o644, uid, gid), (source, None, 0o644, uid, gid)]
+            for archive_name, digest in record.get('archive_files', {}).items():
+                part = base.inside(source.parent, archive_name)
+                destination = base.inside(target.parent, archive_name)
+                if destination.exists() or storage.sha256(base.regular(part)) != digest:
+                    raise CliError('Split VPK state conflict.', 'resource_conflict', 4)
+                writes += [(destination, part, 0o644, uid, gid), (part, None, 0o644, uid, gid)]
+            shared = {key for other, rec in data['packages'].items() if other != name and rec.get('state') == 'enabled'
+                      for key in rec.get('files', {})}
+            if enabled:
+                for relative in extracted:
+                    resource = base.inside(rooms.game(room), relative)
+                    digest = storage.sha256(stage / relative)
+                    if resource.exists() and storage.sha256(resource) != digest:
+                        raise CliError('Map resource conflict: ' + relative, 'resource_conflict', 4)
+                    if not resource.exists():
+                        writes.append((resource, stage / relative, 0o644, uid, gid))
+                        record.setdefault('files', {})[relative] = digest
+            else:
+                for relative, digest in record.get('files', {}).items():
+                    resource = base.inside(rooms.game(room), relative)
+                    if relative not in shared and resource.exists():
+                        if storage.sha256(resource) != digest:
+                            raise CliError('Map resource changed: ' + relative, 'resource_conflict', 4)
+                        writes.append((resource, None, 0o644, uid, gid))
+            record['state'] = desired
+            writes.append((registry_path(room), base.json_bytes(data), 0o644, 0, 0))
+            base.transaction(writes)
+    return {'filename': name, 'state': desired, 'restarts_server': False}
+
+
+def ensure_map_unused(room, maps):
+    current = {r['map'] for r in rooms.all_rooms().values() if r['game_dir'] == room['game_dir']}
+    live = []
+    for room_id in rooms.affected(room):
+        report = rooms.status(rooms.get(room_id))
+        query = report.get('query')
+        if report.get('service', {}).get('MainPID') and not (query and query.get('map')):
+            raise CliError('A shared room is running but its map is unknown; stop it before removal.', 'running_map_unknown', 4)
+        if query:
+            live.append(query['map'])
+    if set(maps) & (current | set(live)):
+        raise CliError('Package contains a default or currently running map.', 'map_in_use', 4)
+
+
 def remove(room, name, purge=False, dry_run=False, yes=False):
     item = package(room, name)
     current = {r['map'] for r in rooms.all_rooms().values() if r['game_dir'] == room['game_dir']}
@@ -189,7 +302,7 @@ def remove(room, name, purge=False, dry_run=False, yes=False):
         record = data['packages'].get(name)
         if not record:
             raise CliError('Untracked package: import provenance before deleting extracted resources.', 'untracked_package', 4)
-        shared = {key for key_name, rec in data['packages'].items() if key_name != name and rec.get('state') != 'removed'
+        shared = {key for key_name, rec in data['packages'].items() if key_name != name and rec.get('state') == 'enabled'
                   for key in rec.get('files', {})}
         writes = [(Path(item['path']), None, 0o644, -1, -1)]
         for archive_name, digest in record.get('archive_files', {}).items():

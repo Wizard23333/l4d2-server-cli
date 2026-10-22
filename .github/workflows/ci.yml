@@ -14,6 +14,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  frontend:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check runner Node runtime
+        run: node --version && npm --version
+      - name: Rebuild the shipped panel from its lockfile
+        working-directory: web/frontend
+        run: npm ci && npm run build
+      - name: Require committed panel assets to match source
+        run: |
+          git diff --exit-code -- src/l4d2_cli/web/static
+          test -z "$(git ls-files --others --exclude-standard src/l4d2_cli/web/static)"
+
   tests:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
@@ -63,7 +80,13 @@ jobs:
           python -m venv /tmp/l4d2-wheel-check
           /tmp/l4d2-wheel-check/bin/python -m pip install --no-index --no-deps dist/*.whl
           /tmp/l4d2-wheel-check/bin/l4d2 --version
+          /tmp/l4d2-wheel-check/bin/l4d2 setup --help
           /tmp/l4d2-wheel-check/bin/l4d2 server configure --help
+          /tmp/l4d2-wheel-check/bin/l4d2 skill show --json
+          mkdir /tmp/l4d2-skill-project
+          /tmp/l4d2-wheel-check/bin/l4d2 skill install --agent codex --project /tmp/l4d2-skill-project --yes --json
+          /tmp/l4d2-wheel-check/bin/l4d2 skill status --agent codex --project /tmp/l4d2-skill-project --json
+          /tmp/l4d2-wheel-check/bin/l4d2 skill uninstall --agent codex --project /tmp/l4d2-skill-project --yes --json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: python-distributions

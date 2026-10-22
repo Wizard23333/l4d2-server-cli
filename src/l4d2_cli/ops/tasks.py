@@ -10,6 +10,7 @@ import sys
 import time
 import uuid
 import contextlib
+import contextvars
 from pathlib import Path
 
 from .. import host
@@ -19,6 +20,7 @@ from . import base
 ALLOWED = {'server', 'download', 'network', 'room', 'map', 'addon', 'plugin', 'transfer', 'backup',
            'admin', 'repair', 'storage', 'rcon'}
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'interrupted'}
+SERVICE_WORKERS = contextvars.ContextVar('l4d2_service_workers', default=False)
 
 
 def path(task_id):
@@ -84,7 +86,7 @@ def entry():
     return [sys.executable] if getattr(sys, 'frozen', False) else [sys.executable, '-B', '-m', 'l4d2_cli']
 
 
-def submit(arguments, yes=False, dry_run=False):
+def submit(arguments, yes=False, dry_run=False, detached=False):
     if not arguments or arguments[0] not in ALLOWED or '--background' in arguments:
         raise CliError('Tasks accept noninteractive mutating CLI operations, without shell commands or nested tasks.', 'invalid_task', 2)
     from ..cli import parser
@@ -104,10 +106,16 @@ def submit(arguments, yes=False, dry_run=False):
     os.chmod(folder, 0o700)
     base.save(path(task_id), document, private=True)
     try:
-        process = subprocess.Popen([*entry(), 'task', '_run', task_id], stdin=subprocess.DEVNULL,
+        worker_entry = [*entry(), 'task', '_run', task_id]
+        if detached or SERVICE_WORKERS.get():
+            from ..common import run
+            run(['systemd-run', '--quiet', '--collect', '--unit=l4d2-cli-task-' + task_id,
+                 '--setenv=PYTHONPATH=' + str(Path(__file__).resolve().parents[2]), *worker_entry], timeout=30)
+            return {'task_id': task_id, 'status': 'queued', 'worker_service': 'l4d2-cli-task-' + task_id}
+        process = subprocess.Popen(worker_entry, stdin=subprocess.DEVNULL,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
                                    env={**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[2])})
-    except OSError:
+    except (OSError, CliError):
         document.update(status='failed', error='worker_launch_failed')
         base.save(path(task_id), document, private=True)
         raise CliError('Task worker could not be started.', 'task_launch_failed', 4) from None

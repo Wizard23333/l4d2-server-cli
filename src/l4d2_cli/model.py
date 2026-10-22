@@ -14,6 +14,9 @@ SERVICE = "l4d2-main.service"
 USER = "l4d2"
 CFG_NAME = "l4d2-cli.cfg"
 STEAMCMD_URL = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
+STEAMCMD_URLS = (STEAMCMD_URL,
+                "https://cdn.cloudflare.steamstatic.com/client/installer/steamcmd_linux.tar.gz",
+                "https://media.steampowered.com/client/installer/steamcmd_linux.tar.gz")
 MIN_FREE = 20 * 1024**3  # Conservative provisional budget; measure in M0.
 
 # Explicit vanilla catalog; no prefix matching of arbitrary custom map names.

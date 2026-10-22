@@ -2,76 +2,51 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import getproxies, proxy_bypass
 
 from .common import CliError, REDACTOR
-from .model import STEAMCMD_URL, Source
+from .model import STEAMCMD_URL, STEAMCMD_URLS, Source
+from .network_probe import WORKER_FLAG
 from .platforms import detect_adapter
 from .repositories import targets as repository_targets
 
-# A subprocess gives DNS, TLS and HTTP a hard wall-clock deadline.
-_PROBE = r'''
-import json, socket, ssl, sys, urllib.error, urllib.parse, urllib.request
-kind, target, seconds = sys.argv[1], sys.argv[2], float(sys.argv[3])
-try:
-    if kind == 'dns':
-        addresses = sorted({item[4][0] for item in socket.getaddrinfo(target, None)})
-        output = {'status':'pass', 'message':'DNS resolved', 'addresses':addresses}
-    else:
-        class Redirect(urllib.request.HTTPRedirectHandler):
-            def redirect_request(self, req, fp, code, msg, headers, newurl):
-                parsed = urllib.parse.urlparse(newurl)
-                if parsed.scheme not in ('http','https') or parsed.username or parsed.password:
-                    raise ValueError('Unsafe redirect')
-                if kind == 'archive':
-                    hosts = ('steamcdn-a.akamaihd.net','media.steampowered.com', 'cdn.cloudflare.steamstatic.com')
-                    if parsed.scheme != 'https' or parsed.hostname not in hosts:
-                        raise ValueError('Unexpected archive redirect target')
-                return super().redirect_request(req, fp, code, msg, headers, newurl)
-        opener = urllib.request.build_opener(Redirect())
-        request = urllib.request.Request(target, headers={'User-Agent':'l4d2-server-cli/0.1', 'Range':'bytes=0-255'})
-        with opener.open(request, timeout=seconds) as response:
-            content = response.read(256)
-            if kind == 'archive' and not content.startswith(b'\x1f\x8b'):
-                raise ValueError('Archive endpoint did not return gzip data (possible verification page)')
-            if kind == 'repository' and (b'<html' in content.lower() or b'<!doctype' in content.lower()):
-                raise ValueError('Repository returned an HTML page')
-            output = {'status':'pass','message':'HTTP endpoint reachable','http_status':response.status}
-except urllib.error.HTTPError as exc:
-    output = {'status':'fail','category':'http','message':'HTTP '+str(exc.code)}
-except socket.gaierror:
-    output = {'status':'fail','category':'dns','message':'DNS resolution failed'}
-except (ssl.SSLError, ssl.CertificateError) as exc:
-    output = {'status':'fail','category':'tls','message':str(exc)}
-except (TimeoutError, socket.timeout):
-    output = {'status':'fail','category':'timeout','message':'Connection timed out'}
-except urllib.error.URLError as exc:
-    reason = exc.reason
-    category = 'tls' if isinstance(reason, ssl.SSLError) else ('dns' if isinstance(reason, socket.gaierror) else 'connection')
-    output = {'status':'fail','category':category,'message':str(reason)}
-except Exception as exc:
-    output = {'status':'fail','category':'response','message':str(exc)}
-print(json.dumps(output))
-'''
+# Subprocesses keep DNS/TLS/HTTP bounded. A frozen CLI is not a Python
+# interpreter, so it must dispatch through its dedicated internal worker.
+def probe_process(kind: str, target: str, timeout: float):
+    arguments = [kind, target, str(timeout)]
+    if getattr(sys, "frozen", False):
+        environment = dict(os.environ)
+        if sys.platform.startswith("linux"):
+            bundle = str(Path(sys._MEIPASS))
+            original = environment.get("LD_LIBRARY_PATH")
+            environment["LD_LIBRARY_PATH"] = bundle + (os.pathsep + original if original else "")
+        return [sys.executable, WORKER_FLAG, *arguments], environment
+    return [sys.executable, str(Path(__file__).with_name("network_probe.py")), *arguments], None
 
 
 def probe(kind: str, target: str, timeout: float) -> dict:
     started = time.monotonic()
     try:
-        completed = subprocess.run([sys.executable, "-c", _PROBE, kind, target, str(timeout)],
-                                   capture_output=True, text=True, timeout=timeout)
+        command, environment = probe_process(kind, target, timeout)
+        completed = subprocess.run(command, env=environment, capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", timeout=timeout)
         if completed.returncode:
             raise ValueError("Probe process failed")
         entry = json.loads(completed.stdout)
+        if (not isinstance(entry, dict) or entry.get("status") not in {"pass", "fail"}
+                or not isinstance(entry.get("message"), str)):
+            raise ValueError("Invalid probe response")
     except subprocess.TimeoutExpired:
         entry = {"status": "fail", "category": "timeout", "message": "Probe exceeded its deadline"}
     except (OSError, ValueError):
-        entry = {"status": "unknown", "category": "probe", "message": "Probe could not produce a valid result"}
+        entry = {"status": "fail", "category": "probe", "message": "Network probe failed to execute or returned invalid data"}
     entry.update({"target": REDACTOR.clean(target), "kind": kind,
                   "elapsed_seconds": round(time.monotonic() - started, 3)})
     return entry
@@ -123,6 +98,28 @@ def check(source: Source, *, timeout: float = 30, needs_dependencies: bool = Fal
             exhausted = True
             break
         entry = probe(kind, target, min(5, remaining))
+        if name == "steamcmd_archive":
+            attempts = [dict(entry)]
+            for candidate in STEAMCMD_URLS[1:]:
+                if entry.get("status") == "pass":
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    exhausted = True
+                    break
+                entry = probe("archive", candidate, min(5, remaining))
+                attempts.append(dict(entry))
+            if len(attempts) > 1:
+                entry["attempts"] = attempts
+            if entry.get("status") == "pass":
+                report["steamcmd_url"] = entry.get("target", target)
+                if len(attempts) > 1:
+                    for previous in entries:
+                        if previous.get("name") == "steamcmd_dns":
+                            previous["required"] = False
+                            if previous["status"] == "fail":
+                                previous["status"] = "warn"
+                            previous["message"] += "; original CDN DNS is diagnostic after archive fallback."
         # A CONNECT proxy can resolve the archive host itself; direct DNS is then diagnostic.
         if name == "steamcmd_dns" and bootstrap_proxied:
             entry["required"] = False

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "l4d2-server-cli"
-version = "0.1.0a1"
-description = "Install and manage a vanilla Linux Left 4 Dead 2 dedicated server"
+version = "0.1.0a2"
+description = "Guided setup and operations for Linux Left 4 Dead 2 dedicated servers"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
@@ -33,4 +33,4 @@ license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-l4d2_cli = ["templates/*.in", "ops/assets/*.sp", "_vendor/tomli/LICENSE", "_vendor/tomli/SOURCE.json"]
+l4d2_cli = ["templates/*.in", "skills/*/SKILL.md", "ops/assets/*.sp", "web/static/*", "web/static/assets/*", "web/licenses/*", "_vendor/tomli/LICENSE", "_vendor/tomli/SOURCE.json"]

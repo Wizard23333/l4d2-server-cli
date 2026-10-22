@@ -15,7 +15,7 @@ ROOT_FILES = {
     '.gitignore', '.gitattributes', 'MANIFEST.in', 'pyproject.toml', 'README.md',
     'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md',
 }
-PUBLIC_DIRS = {'.github', 'bin', 'docs', 'scripts', 'src', 'tests'}
+PUBLIC_DIRS = {'.github', 'bin', 'docs', 'scripts', 'src', 'tests', 'web'}
 PRIVATE_PARTS = {'.git', '.local-docs', '.workbuddy', '.codex', '.agents', '.ssh', '.venv', '.test-tmp',
                  '__pycache__', 'test-results', 'backups', 'serverfiles', 'steamcmd', '.DepotDownloader', 'IsolatedStorage'}
 PRIVATE_NAMES = {'config.vdf', 'loginusers.vdf', 'account.config', 'secrets.toml',

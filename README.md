@@ -1,5 +1,7 @@
 # L4D2 Server CLI
 
+当前预览版：**v0.1.0-alpha.2**（Python 版本 `0.1.0a2`）。[下载安装包](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.2) · [新手开服教程](docs/getting-started.md) · [本版变化与限制](docs/releases/v0.1.0-alpha.2.md)
+
 在 Linux 上安装和管理 Left 4 Dead 2 专用服务器的命令行工具。从首次部署到多房间、地图、插件和备份，使用同一套 CLI 完成日常运维。
 
 所有运维能力均可独立运行，无需部署 Web 面板；支持操作预览、后台任务和 JSON 输出，便于手动使用或接入自动化工具。
@@ -10,6 +12,7 @@
 
 | 能力 | 功能 | 命令 |
 | --- | --- | --- |
+| 首次开服引导 | 中文选择房间设置和安装来源，预检、安装、配置、启动及加入说明 | `setup` |
 | 游戏部署 | 官方服务端下载安装、Steam 认证、本地工具与完整游戏包导入 | `server`、`auth`、`download` |
 | 房间管理 | 接管已有服务器，创建多实例，配置公开/Steam 组模式，逐房间启停和查询 | `room` |
 | 地图战役 | Workshop 搜索与合集/多 Part 解析、GameMaps 安装、VPK 导入与校验提取、默认地图与在线切图、卸载重装 | `map` |
@@ -20,6 +23,8 @@
 | 资源传输与备份 | 来源 Manifest、离线 VPK ZIP、旧面板来源记录导入，完整状态与插件栈备份恢复 | `transfer`、`backup` |
 | 诊断与维护 | 主机和房间检查、日志、磁盘占用、缓存清理、mission BOM 与权限修复、事务恢复 | `doctor`、`storage`、`repair` |
 | 网络与自动化 | 网络预检、内容下载代理、Steam API key、CDN hosts 和 IPv4 优先配置，输出运维能力清单 | `network`、`capabilities` |
+| 可选 Web 面板 | 优化版侧栏和双主题界面，复用 CLI 运维能力，支持安装、配置、服务维护和只读自检 | `web` |
+| 可选 Agent Skill | 单文件运维 Skill，提供常用 Agent 的本地安装、状态检查、更新、导出与卸载 | `skill` |
 
 每个命令均可通过 `--help` 查看参数，例如 `l4d2 room create --help`。完整操作指南见 [CLI 运维说明](docs/operations.md)。
 
@@ -34,6 +39,16 @@
 Ubuntu 20.04 已完成核心流程实测；其他发行版适配、依赖及验证范围见 [Linux 支持说明](docs/linux-support.md)。
 
 ### 可执行包
+
+从上方预览版页面下载同版本的 `.tar.gz` 和 `.sha256`，校验外层包后解压：
+
+```bash
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.2/l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.tar.gz
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.2/l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.sha256
+sha256sum -c l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.sha256
+tar -xzf l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.tar.gz
+cd l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64
+```
 
 可执行包内置 Python，无需系统 Python、venv 或 pip。将完整目录包解压，进入包含 `l4d2`、`_internal/`、`FILES.sha256` 和 `install.sh` 的目录：
 
@@ -71,6 +86,16 @@ python3 -m venv .venv
 ## 快速上手
 
 ### 新建服务器
+
+推荐在目标 Linux 主机运行中文引导：
+
+```bash
+sudo l4d2 setup
+```
+
+按提示选择房间名、端口、官方战役、难度和安装来源，审阅计划后执行。引导复用已有安装记录，失败后保留已完成部分；不会重配或重启运行中的 main 房间。可以用 `sudo l4d2 setup --dry-run` 只预览，或用 `--no-start` 在安装配置后保持停止。游戏本地就绪后会显示加入方式，公网连接仍需由朋友实测。完整步骤和认证/失败恢复见 [新手教程](docs/getting-started.md)。
+
+也可分别执行以下命令：
 
 检查下载网络，安装游戏，保存配置后启动默认房间：
 
@@ -169,22 +194,38 @@ sudo l4d2 storage usage --room main --json
 sudo l4d2 network status --json
 ```
 
-支持结构化输出的命令可加 `--json`，进度写入 stderr。状态命令退出成功表示取得报告，自动化应继续检查 `game_ready` 和服务状态。
+`doctor`、`network check` 和 `server status` 默认显示中文检查清单；支持结构化输出的命令可加 `--json`，进度写入 stderr。状态命令退出成功表示取得报告，自动化应继续检查 `game_ready` 和服务状态。
 
-网络预检检查所选安装来源需要的网络入口。HTTP 代理可用于内容下载，但不等于 SteamCMD 全协议代理；网络预检通过也不保证后续 Steam 认证和完整游戏下载成功。网络配置、缓存清理及受控修复见 [诊断、网络与清理](docs/operations.md#诊断网络与清理)。
+网络预检会展示检查目标、失败原因和建议，SteamCMD 工具下载支持可信 Steam CDN 回退。HTTP 代理可用于内容下载，但不等于 SteamCMD 全协议代理；网络预检通过也不保证后续 Steam 认证和完整游戏下载成功。网络配置、缓存清理及受控修复见 [诊断、网络与清理](docs/operations.md#诊断网络与清理)。
 
 ## 使用范围
 
 - 房间名称使用 ASCII。CLI 不支持非空入场密码 `sv_password`；RCON 密码与 Steam 账号认证正常支持。
 - 已验证双实例、真实 Workshop 战役下载与切图、插件加载与编译、后台任务、离线 ZIP 和同机状态恢复。跨机器恢复、GameMaps/多 Part 在线下载及完整多人对局场景仍需进一步验证。
 - 二维码登录需可选后端，目前属于实验能力，见 [二维码登录](docs/qr-login.md)；完整游戏包的严格断网全链路仍待验证。
-- Web 管理面板、统一 Agent Skill 安装和游戏自动更新暂未提供；后续 Web 面板按可选组件设计，CLI 独立提供底层运维能力。
+- Web 管理面板为可选组件，使用 `web install` 安装、`web check` 自检，见 [面板说明](docs/web-panel.md)。CLI 独立提供底层运维能力；游戏自动更新暂未提供。
+
+## 可选 Agent Skill
+
+在 Agent 所在机器安装一个统一的 `l4d2-manager` Skill，支持 Codex、Claude Code、Cursor、Windsurf、Cline、Copilot、Continue 及通用目录：
+
+```bash
+l4d2 skill list --json
+l4d2 skill install --agent codex --dry-run
+l4d2 skill install --agent codex --yes
+l4d2 skill install --agent claude-code --project /path/to/project --yes
+```
+
+`skill` 命令可通过 Python 源码/wheel 在 Windows、Linux 和 macOS 本地执行，不需要安装游戏、sudo 或 Web。提供查看、导出、状态、更新和卸载；默认保护已有不同内容。Continue 使用项目规则，其他适配器支持用户和项目范围。详见 [Agent Skill 安装说明](docs/agent-skill.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
+| [新手开服教程](docs/getting-started.md) | 下载 CLI、首次引导、好友加入、失败恢复及上一版升级 |
 | [CLI 运维指南](docs/operations.md) | 多房间、地图、Mod、插件、管理员、RCON、任务、传输、备份和修复 |
+| [可选 Web 面板](docs/web-panel.md) | 安装、配置、自检、页面能力、服务维护及验收 |
+| [可选 Agent Skill](docs/agent-skill.md) | 单文件 Skill、工具适配、用户/项目安装、更新、冲突保护和卸载 |
 | [配置与权限](docs/configuration.md) | 默认房间配置、公开/Steam 组模式、秘密文件与权限 |
 | [Steam 登录](docs/steam-auth.md) / [二维码登录](docs/qr-login.md) | 首次认证、私有缓存及可选登录后端 |
 | [完整游戏包与离线导入](docs/bundle-format-v1.md) | 制作安装包、本地来源和离线安装 |
