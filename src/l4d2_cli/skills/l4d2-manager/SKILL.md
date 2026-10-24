@@ -34,9 +34,14 @@ metadata:
 
 | 用户任务 | CLI 入口 |
 | --- | --- |
+| 中文首次开服 | `setup` |
 | 安装本体、准备安装源 | `server install`、`download steamcmd`、`download server`、`auth login`、`network check` |
 | 扫描并接管旧服务器 | `room scan`、`room adopt`、`room list` |
 | 多房间配置与运行 | `room create/configure/status/start/stop/restart/logs/doctor/refresh/remove` |
+| 邀请好友与连接诊断 | `room invite/connect-check`、`network probe` |
+| 三方图分享与依赖核对 | `map share` |
+| Steam 身份好友名单 | `access configure/status` |
+| 官方游戏停服更新 | `room update` |
 | 原有 main 基础管理 | `server configure/start/stop/restart/status/logs` |
 | 地图与战役清单 | `map list`、`map info` |
 | Workshop/GameMaps 获取 | `map search/resolve/install`、`addon search/resolve/install` |
@@ -48,6 +53,7 @@ metadata:
 | 独立后台任务 | `task submit/list/show/logs/cancel/retry/delete` |
 | Manifest、VPK ZIP 与旧来源记录 | `transfer export/import/install` |
 | 整服或插件栈备份恢复 | `backup create/inspect/restore` |
+| 定时备份与健康检查 | `schedule add/list/run/remove`、`room health` |
 | 存储与修复 | `storage usage/cleanup`、`repair mission-bom/permissions/transaction` |
 | 下载网络配置 | `network status/configure` |
 | 可选面板 | `web install/configure/start/stop/restart/status/check/logs/uninstall` |
@@ -62,6 +68,18 @@ metadata:
 新房间从已有房间创建，端口独立，游戏目录可共享。`main` 是原有 CLI 安装的房间标识，不要假设它等于旧服的 Room 1。公开/组模式使用短 Steam group ID；不接受 groupID64 或组页面 URL。组优先模式不等于严格成员白名单，不把 GSLT 当成组列表不可见的通用修复。
 
 Steam 认证与下载权限、网络连通性是不同问题。密码/Guard 登录和扫码后端缓存不能混用；完整游戏包离线导入与仅准备 SteamCMD 工具包也不同。遵循实际命令的账号、缓存和来源约束，不把登录成功报告成游戏下载成功。
+
+## 好友开黑与维护
+
+`room invite --address` 使用本次确认的实际公网地址，复制返回的分享文字。`room connect-check` 与 `network probe` 只提供所在机器的查询证据；外网好友可在自己的 Windows/Linux/macOS Python 入口运行 probe，游戏内加入单独验收。
+
+`map share` 默认按启用地图生成，可选择具体 Workshop 条目/合集或文件。检查 `complete`、warnings 和全部分包/依赖；缺 key、隐藏条目、网络失败或本地包时不宣称清单完整。API key 通过私有文件配置。来源可能漏写依赖，分享清单不证明客户端已下载。
+
+好友名单需要 SourceMod 和个人 SteamID64 文件，包含服主。先核对并停止所有共享安装的房间，再预览 `access configure`；策略按游戏端口绑定，改端口/新房间/恢复插件后重新核对。`runtime_verified` 是插件回执，不是实际玩家允许/拒绝验收；框架失效或绕过 CLI 启动时不能保证限制。原生 Steam 组、GSLT、RCON 密码均不能替代名单。
+
+`room update` 更新整个共享游戏目录，所有共享房间先停服；自动备份不含旧游戏二进制。失败后保留状态，用同一来源重试，完成后再启动和检查插件兼容性，不自动回滚旧游戏版本。
+
+`schedule` 在目标服务器安装 systemd timer，桌面/Web 关闭后仍执行。每日时间按目标主机时区；创建前核对房间、时间、保留份数和受信任 CLI 路径。用 `schedule run` 试跑、list 核对最近结果。备份含秘密；健康检查只记录/报告异常，不自动启停、更新游戏或发送消息。
 
 ## 地图、战役与 VPK Mod
 

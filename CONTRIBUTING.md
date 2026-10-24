@@ -1,6 +1,6 @@
 # 贡献指南
 
-首个预览版专注单实例原版服务端；alpha.2 增加首次开服引导、多房间、地图、插件、任务、传输和备份等独立运维能力。业务逻辑维护在 `src/l4d2_cli/ops/`，命令接口位于其中的 `cli.py`。可选 Web 面板与 Agent 接入应复用该执行层及其状态格式。
+首个预览版专注单实例原版服务端；alpha.2 增加完整运维，alpha.3 增加好友加入、地图分享、Steam 身份名单、更新和定时维护。业务逻辑维护在 `src/l4d2_cli/ops/`，命令接口位于其中的 `cli.py`。可选 Web 面板与 Agent 接入应复用该执行层及其状态格式。
 
 ## 本地验证
 
@@ -17,7 +17,7 @@ python -B scripts/check_release.py
 python -m pip install build twine
 python -m build
 python -m twine check --strict dist/*
-python scripts/check_release.py --artifact dist/l4d2_server_cli-0.1.0a2-py3-none-any.whl --artifact dist/l4d2_server_cli-0.1.0a2.tar.gz
+python scripts/check_release.py --artifact dist/l4d2_server_cli-0.1.0a3-py3-none-any.whl --artifact dist/l4d2_server_cli-0.1.0a3.tar.gz
 ```
 
 Windows只验证兼容逻辑和打包；Linux特定测试会跳过。真实安装/启停应在独立VM或明确授权的测试房间运行，[实机脚本](scripts/acceptance/README.md)会修改测试服务，不属于CI。

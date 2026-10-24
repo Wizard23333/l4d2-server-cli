@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import shutil
 import tempfile
@@ -48,15 +49,19 @@ def create(room, output=None, scope='full', dry_run=False, yes=False):
     if early:
         return early
     game = rooms.game(room)
+    initial_rooms = rooms.affected(room)
     selected = {}
     for relative in (*PLUGIN_ROOTS, 'addons/metamod.vdf', 'addons/metamod_x64.vdf'):
         for path in files_under(base.inside(game, relative)):
+            if (path.parent == game / 'addons/sourcemod/data' and
+                    path.name.startswith('l4d2_cli_access_') and path.suffix == '.txt'):
+                continue  # Derived runtime heartbeat; never restore it as policy evidence.
             selected['game/' + path.relative_to(game).as_posix()] = path
     profiles = {}
     if scope == 'full':
         for path in files_under(game / 'cfg'):
             selected['game/' + path.relative_to(game).as_posix()] = path
-        for room_id in rooms.affected(room):
+        for room_id in initial_rooms:
             profile = rooms.get(room_id)
             profiles[room_id] = {key: value for key, value in profile.items() if key != 'hashes'}
             selected['game/' + Path(profile['cfg']).relative_to(game).as_posix()] = base.regular(profile['cfg'])
@@ -100,6 +105,8 @@ def create(room, output=None, scope='full', dry_run=False, yes=False):
         raise CliError('Insufficient backup space.', 'insufficient_space', 4)
     with storage.operation_lock():
         base.recover()
+        if rooms.affected(room) != initial_rooms:
+            raise CliError('Rooms changed while preparing the snapshot; retry.', 'snapshot_conflict', 4)
         # Check again while locked; do not claim a coherent snapshot if files changed during enumeration.
         for name, path in selected.items():
             if storage.sha256(path) != manifest['files'][name]['sha256']:
@@ -112,6 +119,15 @@ def create(room, output=None, scope='full', dry_run=False, yes=False):
                     for name, path in selected.items():
                         archive.write(path, name)
                     archive.writestr('manifest.json', json.dumps(manifest))
+            with zipfile.ZipFile(temporary) as archive:
+                for name, item in manifest['files'].items():
+                    digest = hashlib.sha256()
+                    with archive.open(name) as member:
+                        for block in iter(lambda: member.read(1024 * 1024), b''):
+                            digest.update(block)
+                    if digest.hexdigest() != item['sha256']:
+                        raise CliError('State changed while writing the snapshot; previous backups are retained.',
+                                       'snapshot_conflict', 4)
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)
@@ -264,6 +280,13 @@ def restore(room, source, expected=None, network=False, panel=False, dry_run=Fal
         if network:
             from .maintenance import network_writes
             writes.extend(network_writes(document.get('network', {})))
+        from . import access
+        access_present = any(name.endswith('/l4d2_cli_access.smx') for name in document['files'])
+        if access_present:
+            # Restore plugin/policy bytes, then require explicit reconciliation of room/port bindings.
+            # An old or cross-host snapshot must never silently reactivate a public policy.
+            for room_id in affected:
+                writes.append((access.state_path(rooms.get(room_id)), None, 0o600, 0, 0))
         with storage.operation_lock():
             base.transaction(writes)
             # Rebuild hashes using restored files; no sensitive contents enter the registry.
@@ -299,6 +322,7 @@ def restore(room, source, expected=None, network=False, panel=False, dry_run=Fal
                     private['rcon_password'] = values['rcon_password']
             manager.configure(dataclasses.replace(config, **settings), private, dry_run=False, yes=True)
     return {'restored': True, 'scope': document['scope'], 'restarts_server': False,
+            'access_requires_reconfigure': access_present,
             'maps_require_reinstall': full, 'rooms_require_explicit_start': True,
             'saved_defaults': {(room['id'] if key == document.get('primary_room', 'main') else key):
                                {'map': value['map'], 'autostart': value.get('autostart', False)}

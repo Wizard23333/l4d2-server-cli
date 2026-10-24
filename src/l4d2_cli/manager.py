@@ -108,7 +108,12 @@ def status(*, query_timeout: float = 3) -> dict:
         except CliError as exc:
             error = {"code": exc.code, "message": str(exc)}
     active = service.get("ActiveState") == "active"
-    ready = bool(active and query and ownership is True)
+    from .ops import access, base, updates
+    control = access.status({'id': 'main', 'game_dir': config.game_dir, 'port': current.port})
+    update = base.read(updates.state_path(config.game_dir))
+    ready = bool(active and query and ownership is True and
+                 (not control['configured'] or control['runtime_verified']) and
+                 update.get('status') not in {'updating', 'failed', 'interrupted'})
     desired_revision = config.revision
     applied = state.get("applied_revision") if state.get("running_invocation_id") == service.get("InvocationID") else None
     return {"installation": state.get("status", "unknown"), "phase": state.get("phase"), "service": service,
@@ -119,7 +124,8 @@ def status(*, query_timeout: float = 3) -> dict:
             "readiness": "ready" if ready else ("ownership_unknown" if active and query and ownership is None else "not_ready"),
             "desired_revision": desired_revision, "applied_revision": applied,
             "configuration_pending": desired_revision != applied if applied is not None else "unknown",
-            "connection": connection_guide(current), "pending_transaction": PATHS.journal.exists()}
+            "connection": connection_guide(current), "access": control, "update": update,
+            "pending_transaction": PATHS.journal.exists()}
 
 
 def configure(config: Config, secrets: dict, *, dry_run: bool, yes: bool) -> dict:
@@ -172,6 +178,10 @@ def configure(config: Config, secrets: dict, *, dry_run: bool, yes: bool) -> dic
 
 def _start(config: Config, state: dict, deadline: float) -> dict:
     validate_vanilla_secrets(storage.load_secrets())
+    from .ops import access, updates
+    access_room = {'id': 'main', 'game_dir': config.game_dir, 'port': config.port}
+    updates.guard(config.game_dir)
+    access.guard(access_room)
     storage.check_managed_hashes(config)
     runtime_check(game_path(config.game_dir), deadline_remaining(deadline))
     info = host.service_info()
@@ -189,6 +199,7 @@ def _start(config: Config, state: dict, deadline: float) -> dict:
     attempts = 0
     previous = None
     try:
+        started_at = int(time.time())
         host.systemctl("start", deadline_remaining(deadline))
         next_query = time.monotonic()
         spacing = max(1, deadline_remaining(deadline) / 3)
@@ -203,13 +214,13 @@ def _start(config: Config, state: dict, deadline: float) -> dict:
                 ownership = host.udp_owner(config.port, info["MainPID"], timeout=min(5, deadline_remaining(deadline)))
                 try:
                     query = a2s.query(query_address(config), config.port, min(3, deadline_remaining(deadline)))
-                    if ownership is True and info.get("ActiveState") == "active":
+                    if ownership is True and info.get("ActiveState") == "active" and access.ready(access_room, started_at):
                         state.update(applied_revision=config.revision, running_config=asdict(config),
                                      running_invocation_id=info.get("InvocationID"))
                         storage.save_json(PATHS.state, state)
                         return {"started": True, "service": info, "query": query, "game_ready": True,
                                 "connection": connection_guide(config)}
-                    previous = "Game response could not be associated with the managed process."
+                    previous = "请检查游戏端口归属及好友访问插件的运行回执。"
                 except CliError as exc:
                     previous = str(exc)
             if attempts >= 3:

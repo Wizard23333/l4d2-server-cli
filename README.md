@@ -1,6 +1,6 @@
 # L4D2 Server CLI
 
-当前预览版：**v0.1.0-alpha.2**（Python 版本 `0.1.0a2`）。[下载安装包](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.2) · [新手开服教程](docs/getting-started.md) · [本版变化与限制](docs/releases/v0.1.0-alpha.2.md)
+当前预览版：**v0.1.0-alpha.3**（Python 版本 `0.1.0a3`）。[下载安装包](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.3) · [新手开服教程](docs/getting-started.md) · [本版变化与限制](docs/releases/v0.1.0-alpha.3.md)
 
 在 Linux 上安装和管理 Left 4 Dead 2 专用服务器的命令行工具。从首次部署到多房间、地图、插件和备份，使用同一套 CLI 完成日常运维。
 
@@ -13,6 +13,10 @@
 | 能力 | 功能 | 命令 |
 | --- | --- | --- |
 | 首次开服引导 | 中文选择房间设置和安装来源，预检、安装、配置、启动及加入说明 | `setup` |
+| 好友加入与诊断 | 复制连接说明、检查运行端口、让好友从自己的电脑查询游戏 | `room invite/connect-check`、`network probe` |
+| 地图分享清单 | Workshop 合集、分包与声明依赖递归展开，标明未验证项 | `map share` |
+| 好友名单房间 | 按 SteamID64 配置 SourceMod 名单，核对策略与插件运行回执 | `access` |
+| 日常维护 | 停服更新官方游戏、定时私有备份、定时只读健康检查 | `room update/health`、`schedule` |
 | 游戏部署 | 官方服务端下载安装、Steam 认证、本地工具与完整游戏包导入 | `server`、`auth`、`download` |
 | 房间管理 | 接管已有服务器，创建多实例，配置公开/Steam 组模式，逐房间启停和查询 | `room` |
 | 地图战役 | Workshop 搜索与合集/多 Part 解析、GameMaps 安装、VPK 导入与校验提取、默认地图与在线切图、卸载重装 | `map` |
@@ -43,11 +47,11 @@ Ubuntu 20.04 已完成核心流程实测；其他发行版适配、依赖及验�
 从上方预览版页面下载同版本的 `.tar.gz` 和 `.sha256`，校验外层包后解压：
 
 ```bash
-curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.2/l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.tar.gz
-curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.2/l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.sha256
-sha256sum -c l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.sha256
-tar -xzf l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64.tar.gz
-cd l4d2-server-cli-v0.1.0-alpha.2-linux-x86_64
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.3/l4d2-server-cli-v0.1.0-alpha.3-linux-x86_64.tar.gz
+curl -fLO https://github.com/Wizard23333/l4d2-server-cli/releases/download/v0.1.0-alpha.3/l4d2-server-cli-v0.1.0-alpha.3-linux-x86_64.sha256
+sha256sum -c l4d2-server-cli-v0.1.0-alpha.3-linux-x86_64.sha256
+tar -xzf l4d2-server-cli-v0.1.0-alpha.3-linux-x86_64.tar.gz
+cd l4d2-server-cli-v0.1.0-alpha.3-linux-x86_64
 ```
 
 可执行包内置 Python，无需系统 Python、venv 或 pip。将完整目录包解压，进入包含 `l4d2`、`_internal/`、`FILES.sha256` 和 `install.sh` 的目录：
@@ -194,7 +198,18 @@ sudo l4d2 storage usage --room main --json
 sudo l4d2 network status --json
 ```
 
-`doctor`、`network check` 和 `server status` 默认显示中文检查清单；支持结构化输出的命令可加 `--json`，进度写入 stderr。状态命令退出成功表示取得报告，自动化应继续检查 `game_ready` 和服务状态。
+`doctor`、`network check`、房间状态/清单、地图/插件清单及新维护命令默认显示中文结果；支持结构化输出的命令可加 `--json`，进度写入 stderr。状态命令退出成功表示取得报告，自动化应继续检查 `game_ready` 和服务状态。`room health`、`room connect-check` 和 `network probe` 在检查异常时返回非零退出码。
+
+和朋友开黑的常用入口（地址替换为实际公网地址）：
+
+```bash
+sudo l4d2 room invite --room main --address YOUR_SERVER_IP
+sudo l4d2 room connect-check --room main --address YOUR_SERVER_IP
+sudo l4d2 map share --room main
+sudo l4d2 room health --room main
+```
+
+复制邀请、核对地图依赖、好友名单、游戏更新及定时维护，见 [好友开黑与日常维护](docs/players-and-maintenance.md)。
 
 网络预检会展示检查目标、失败原因和建议，SteamCMD 工具下载支持可信 Steam CDN 回退。HTTP 代理可用于内容下载，但不等于 SteamCMD 全协议代理；网络预检通过也不保证后续 Steam 认证和完整游戏下载成功。网络配置、缓存清理及受控修复见 [诊断、网络与清理](docs/operations.md#诊断网络与清理)。
 
@@ -203,7 +218,9 @@ sudo l4d2 network status --json
 - 房间名称使用 ASCII。CLI 不支持非空入场密码 `sv_password`；RCON 密码与 Steam 账号认证正常支持。
 - 已验证双实例、真实 Workshop 战役下载与切图、插件加载与编译、后台任务、离线 ZIP 和同机状态恢复。跨机器恢复、GameMaps/多 Part 在线下载及完整多人对局场景仍需进一步验证。
 - 二维码登录需可选后端，目前属于实验能力，见 [二维码登录](docs/qr-login.md)；完整游戏包的严格断网全链路仍待验证。
-- Web 管理面板为可选组件，使用 `web install` 安装、`web check` 自检，见 [面板说明](docs/web-panel.md)。CLI 独立提供底层运维能力；游戏自动更新暂未提供。
+- 好友名单由 SourceMod 插件执行，支持文件/插件回执检查；真实允许、拒绝、重连和换图验收仍待测试主机及玩家参与。框架故障时不能保证访问限制，不把 Steam 组或 RCON 密码当作白名单。
+- `room update` 提供显式停服更新；定时任务支持备份和健康检查。更新前备份不含旧游戏二进制；不提供有人游玩时自动停服更新。
+- Web 管理面板为可选组件，使用 `web install` 安装、`web check` 自检，见 [面板说明](docs/web-panel.md)。新增操作也可从面板通用命令表使用。
 
 ## 可选 Agent Skill
 

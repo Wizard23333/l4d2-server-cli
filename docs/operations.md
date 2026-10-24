@@ -1,6 +1,6 @@
 # CLI 运维命令
 
-本文描述开发源码中的运维能力。已发布的 `v0.1.0-alpha.1` 附件尚不包含这些命令；在 Linux 源码目录使用 `python3 bin/l4d2`，或重新构建并安装。原有 `server`、`auth`、`download`、`network check` 命令继续可用。
+本文描述 alpha.3 的运维能力，包含在同版本 CLI 包中；旧版本先检查实际帮助和 capabilities。好友加入、地图分享、好友名单、游戏更新和定时维护见 [好友开黑与日常维护](players-and-maintenance.md)。原有 `server`、`auth`、`download`、`network check` 继续可用。
 
 全部运维能力独立于 Web 面板。源码不启动 HTTP 服务，也不需要旧面板的 helper、环境文件或进程。只有显式导入旧来源记录、或选择备份/还原面板状态时才读取旧面板数据。
 

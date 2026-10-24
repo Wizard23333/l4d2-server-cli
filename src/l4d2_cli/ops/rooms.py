@@ -101,11 +101,17 @@ def status(room):
             query = manager.a2s.query(address, live['port'], 3)
         except CliError as exc:
             error = {'code': exc.code, 'message': str(exc)}
+    from . import access, updates
+    control = access.status({**room, 'port': live['port']})
+    update = base.read(updates.state_path(room['game_dir']))
     return {'room': room['id'], 'configuration': {k: v for k, v in room.items() if k != 'hashes'},
             'service': info, 'query': query, 'query_error': error, 'port_owned_by_service': ownership,
             'running_endpoint': {'bind': live['bind'], 'port': live['port']},
             'configuration_pending': bool(info.get('MainPID') and room.get('configuration_pending')),
-            'game_ready': bool(info.get('ActiveState') == 'active' and query and ownership is True),
+            'game_ready': bool(info.get('ActiveState') == 'active' and query and ownership is True and
+                               (not control['configured'] or control['runtime_verified']) and
+                               update.get('status') not in {'updating', 'failed', 'interrupted'}),
+            'access': control, 'update': update,
             'public_reachability': 'unverified', 'affected_rooms': affected(room)}
 
 
@@ -293,7 +299,7 @@ def configure(room_id, settings, password=None, dry_run=False, yes=False):
     info = check(room)
     if info.get('MainPID'):
         updated['running'] = (room.get('running') if room.get('running_invocation') == info.get('InvocationID') else None) or {
-            key: room[key] for key in ('bind', 'port', 'map')}
+            key: room[key] for key in ('bind', 'port', 'map', 'name', 'visibility', 'steam_group_id', 'mode', 'difficulty')}
         updated['running_invocation'] = info.get('InvocationID')
         updated['configuration_pending'] = True
     if updated['port'] != room['port'] or updated['bind'] != room['bind']:
@@ -354,17 +360,24 @@ def lifecycle(room_id, action, timeout=180, dry_run=False, yes=False, as_json=Fa
             endpoint = current.get('running_endpoint', room)
             host.check_udp_available(endpoint['bind'], endpoint['port'])
         if action in {'start', 'restart'}:
+            from . import access, updates
+            updates.guard(room['game_dir'])
+            access.guard(room)
             from .content import inventory
             if room['map'] not in inventory(room)['maps']:
                 raise CliError('Default map is missing.', 'map_not_installed', 2)
             if not current['game_ready'] or action == 'restart':
                 host.check_udp_available(room['bind'], room['port'])
+                started_at = int(time.time())
                 run(['systemctl', 'start', room['service']], timeout=max(1, deadline - time.monotonic()))
+            else:
+                started_at = 0
             while time.monotonic() < deadline:
                 report = status(room)
-                if report['game_ready']:
+                if report['game_ready'] and access.ready(room, started_at):
                     data = registry()
-                    data['rooms'][room_id].update(running={key: room[key] for key in ('bind', 'port', 'map')},
+                    data['rooms'][room_id].update(running={key: room[key] for key in
+                                                  ('bind', 'port', 'map', 'name', 'visibility', 'steam_group_id', 'mode', 'difficulty')},
                                                   running_invocation=report['service'].get('InvocationID'),
                                                   configuration_pending=False)
                     base.save(base.ROOMS, data, private=True)
@@ -373,7 +386,8 @@ def lifecycle(room_id, action, timeout=180, dry_run=False, yes=False, as_json=Fa
                 if report['service'].get('ActiveState') == 'failed':
                     break
                 time.sleep(min(1, max(0, deadline - time.monotonic())))
-            raise CliError('Room did not become ready; inspect room status/logs.', 'startup_not_ready', 4)
+            run(['systemctl', '--no-block', 'stop', room['service']], timeout=5, check=False)
+            raise CliError('房间未就绪（含访问插件检查）；已请求停止，请检查状态和日志。', 'startup_not_ready', 4)
     return status(room)
 
 

@@ -1,12 +1,12 @@
 # 第一次和朋友开服
 
-本教程适用于 `v0.1.0-alpha.2`。准备一台可通过 SSH 登录、具有 sudo 权限的 Linux x86_64 主机，运行 glibc 和 systemd；首次安装至少预留 20 GiB，三方图和备份需要额外空间。系统范围见 [Linux 支持说明](linux-support.md)。你和朋友需要各自的正版 L4D2 客户端。
+本教程适用于 `v0.1.0-alpha.3`。准备一台可通过 SSH 登录、具有 sudo 权限的 Linux x86_64 主机，运行 glibc 和 systemd；首次安装至少预留 20 GiB，三方图和备份需要额外空间。系统范围见 [Linux 支持说明](linux-support.md)。你和朋友需要各自的正版 L4D2 客户端。
 
 Windows 玩家可先用终端 `ssh YOUR_SSH_HOST` 登录自己的 Linux 主机，后续命令在 Linux 上执行。本版不在 Windows 上创建游戏服务，也不代为购买云主机或修改云安全组。
 
 ## 1. 安装 CLI
 
-在 [alpha.2 下载页](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.2) 下载 Linux 包和同名校验文件，按照 [README 安装步骤](../README.md#可执行包) 校验、解压。在解压目录执行：
+在 [alpha.3 下载页](https://github.com/Wizard23333/l4d2-server-cli/releases/tag/v0.1.0-alpha.3) 下载 Linux 包和同名校验文件，按照 [README 安装步骤](../README.md#可执行包) 校验、解压。在解压目录执行：
 
 ```bash
 sha256sum -c FILES.sha256
@@ -15,7 +15,7 @@ l4d2 --version
 l4d2 setup --help
 ```
 
-版本应为 `0.1.0a2`。内置 Python，无需自行安装 pip；整个程序目录需保留，不能只复制可执行文件。
+版本应为 `0.1.0a3`。内置 Python，无需自行安装 pip；整个程序目录需保留，不能只复制可执行文件。
 
 ## 2. 启动中文引导
 
@@ -92,8 +92,8 @@ sudo l4d2 setup --steam-user YOUR_STEAM_LOGIN_NAME \
 
 ## 5. 从 alpha.1 升级
 
-下载并校验 alpha.2 完整目录包，在新包目录运行 `sudo bash ./install.sh`。安装器检查目标后切换 CLI 全局入口，保留旧 CLI 安装；遇到同名无关命令会拒绝覆盖。
+下载并校验 alpha.3 完整目录包，在新包目录运行 `sudo bash ./install.sh`。安装器检查目标后切换 CLI 全局入口，保留旧 CLI 安装；遇到同名无关命令会拒绝覆盖。
 
 CLI 升级不更新游戏、不重启房间，也不要求重新执行 `setup`。先检查 `l4d2 --version`、`l4d2 capabilities --json`、`sudo l4d2 server status`。旧版仅便携运行时，也可直接用新包的 `./l4d2` 检查现有状态。已有可选 Web 安装升级后，按 [面板说明](web-panel.md) 更新其服务入口。
 
-后续三方图、插件、多房间与备份使用 [运维指南](operations.md)。安装 Web 或 Agent Skill 都是可选步骤。
+好友邀请、连接故障、地图分享、名单和定时维护见 [好友开黑与日常维护](players-and-maintenance.md)。其他操作见 [运维指南](operations.md)。安装 Web 或 Agent Skill 都是可选步骤。

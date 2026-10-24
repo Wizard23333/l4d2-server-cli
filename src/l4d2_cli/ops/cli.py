@@ -6,27 +6,27 @@ from pathlib import Path
 
 from .. import host, storage
 from ..common import CliError, positive
-from . import base, backup, catalog, content, maintenance, plugins, rcon, rooms, tasks, transport, vpk
+from . import access, base, backup, catalog, content, health, joining, maintenance, plugins, rcon, rooms, schedules, sharing, tasks, transport, updates, vpk
 
-GROUPS = {'room', 'map', 'addon', 'plugin', 'admin', 'rcon', 'task', 'transfer', 'backup', 'storage', 'repair', 'capabilities'}
+GROUPS = {'room', 'map', 'addon', 'plugin', 'admin', 'rcon', 'task', 'transfer', 'backup', 'storage', 'repair', 'capabilities', 'access', 'schedule'}
 
 
 def flags(parser, *, mutate=False, room=True, timeout=False):
-    parser.add_argument('--json', action='store_true', help='Write a structured result')
+    parser.add_argument('--json', action='store_true', help='输出供自动化使用的 JSON')
     if room:
-        parser.add_argument('--room', default='main', help='Registered room ID (default main)')
+        parser.add_argument('--room', default='main', help='已登记房间 ID，默认 main')
     if mutate:
-        parser.add_argument('--dry-run', action='store_true', help='Inspect the operation without writes')
-        parser.add_argument('--yes', action='store_true', help='Confirm the reviewed operation')
+        parser.add_argument('--dry-run', action='store_true', help='预览计划，确认影响范围')
+        parser.add_argument('--yes', action='store_true', help='确认执行已审阅的计划')
     if timeout:
         parser.add_argument('--timeout', type=positive, default=1800, help='Operation time budget in seconds')
     return parser
 
 
 def register(groups, network):
-    caps = groups.add_parser('capabilities', help='Discover the headless operations contract')
+    caps = groups.add_parser('capabilities', help='查询当前版本实际支持的能力')
     flags(caps, room=False)
-    sub = groups.add_parser('room', help='Register and manage multiple rooms').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('room', help='房间管理、邀请好友、连接诊断与游戏更新').add_subparsers(dest='action', required=True)
     flags(sub.add_parser('list'), room=False)
     scan = flags(sub.add_parser('scan'), room=False)
     scan.add_argument('--dir', default='/opt/l4d2')
@@ -62,8 +62,18 @@ def register(groups, network):
     flags(sub.add_parser('doctor'))
     flags(sub.add_parser('remove'), mutate=True)
     flags(sub.add_parser('refresh'), mutate=True)
+    for action in ('invite', 'connect-check'):
+        item = flags(sub.add_parser(action, help='好友加入说明' if action == 'invite' else '连接诊断与下一步'))
+        item.add_argument('--address', help='实际 IPv4/域名；不自动探测公网地址')
+    item = flags(sub.add_parser('health', help='只读健康检查；异常时返回非零退出码'))
+    item.add_argument('--minimum-free-gib', type=positive, default=2)
+    item = flags(sub.add_parser('update', help='备份配置并更新官方游戏；共享房间需先停服'), mutate=True, timeout=True)
+    item.set_defaults(timeout=3600)
+    item.add_argument('--steamcmd-path', help='可选：已验证账号缓存中的 steamcmd.sh')
+    item.add_argument('--steam-user', default='anonymous')
+    item.add_argument('--steam-tcp', action='store_true')
     for group in ('map', 'addon'):
-        sub = groups.add_parser(group, help='Manage ' + group + ' content').add_subparsers(dest='action', required=True)
+        sub = groups.add_parser(group, help='地图、战役与分享清单' if group == 'map' else 'Mod 安装与启停').add_subparsers(dest='action', required=True)
         flags(sub.add_parser('list'))
         info = flags(sub.add_parser('info'))
         info.add_argument('filename')
@@ -91,6 +101,11 @@ def register(groups, network):
                 item = flags(sub.add_parser(state), mutate=True)
                 item.add_argument('filename')
         if group == 'map':
+            item = flags(sub.add_parser('share', help='生成好友订阅清单、分包和依赖核对结果'))
+            selected = item.add_mutually_exclusive_group()
+            selected.add_argument('--id', help='指定 Workshop 条目/合集；省略时按启用地图生成')
+            selected.add_argument('--filename', action='append', help='选择启用的地图/Mod 包，可重复')
+            item.add_argument('--offline', action='store_true', help='仅按本地来源记录生成，标记依赖未验证')
             for action in ('default', 'change'):
                 item = flags(sub.add_parser(action), mutate=True, timeout=action == 'change')
                 item.add_argument('map')
@@ -99,7 +114,7 @@ def register(groups, network):
             extract = flags(sub.add_parser('extract'), mutate=True, room=False)
             extract.add_argument('--file', required=True)
             extract.add_argument('--output', required=True)
-    sub = groups.add_parser('plugin', help='SourceMod frameworks and plugins').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('plugin', help='SourceMod 框架、插件与编译').add_subparsers(dest='action', required=True)
     flags(sub.add_parser('sources'), room=False)
     flags(sub.add_parser('list'))
     install = flags(sub.add_parser('install'), mutate=True)
@@ -115,10 +130,10 @@ def register(groups, network):
     compile_parser = flags(sub.add_parser('compile'), mutate=True)
     source = compile_parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--file')
-    source.add_argument('--builtin', choices=('infected_counter', 'jiangmen_changelevel_fix'))
+    source.add_argument('--builtin', choices=('infected_counter', 'jiangmen_changelevel_fix', 'l4d2_cli_access'))
     compile_parser.add_argument('--name')
     compile_parser.add_argument('--deploy', action='store_true')
-    sub = groups.add_parser('admin', help='EMS and SourceMod administrator records').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('admin', help='游戏管理员名单').add_subparsers(dest='action', required=True)
     for action in ('list', 'add', 'remove'):
         item = flags(sub.add_parser(action), mutate=action != 'list')
         item.add_argument('--backend', choices=('sourcemod', 'left4bots', 'admin-system'), default='sourcemod')
@@ -126,10 +141,10 @@ def register(groups, network):
             item.add_argument('steam_id')
         if action == 'add':
             item.add_argument('--flags', default='99:z')
-    sub = groups.add_parser('rcon', help='Execute Source console commands').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('rcon', help='以私有文件执行游戏控制台命令').add_subparsers(dest='action', required=True)
     item = flags(sub.add_parser('exec'), mutate=True, timeout=True)
     item.add_argument('--command-file', required=True, help='One console command in a private UTF-8 file')
-    sub = groups.add_parser('task', help='Persistent operations without a web server').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('task', help='独立后台任务与进度').add_subparsers(dest='action', required=True)
     flags(sub.add_parser('list'), room=False)
     submit = flags(sub.add_parser('submit'), mutate=True, room=False)
     submit.add_argument('--detach-service', action='store_true', help='Use an independent transient systemd worker (for web/service callers)')
@@ -140,7 +155,7 @@ def register(groups, network):
         item.add_argument('id')
         if action == 'logs':
             item.add_argument('--lines', type=int, default=100)
-    sub = groups.add_parser('transfer', help='Content manifests and offline ZIP transfers').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('transfer', help='资源来源清单与离线 ZIP 传输').add_subparsers(dest='action', required=True)
     for action in ('export', 'import'):
         item = flags(sub.add_parser(action), mutate=True)
         item.add_argument('--format', choices=('manifest', 'zip') if action == 'export' else ('manifest', 'zip', 'legacy'), default='manifest')
@@ -149,7 +164,7 @@ def register(groups, network):
             item.add_argument('--filename', action='append')
     install_manifest = flags(sub.add_parser('install'), mutate=True, timeout=True)
     install_manifest.add_argument('--filename', action='append', help='Select imported records; default all removed records')
-    sub = groups.add_parser('backup', help='Private complete state snapshots').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('backup', help='配置、插件和来源记录的私有备份与恢复').add_subparsers(dest='action', required=True)
     item = flags(sub.add_parser('create'), mutate=True)
     item.add_argument('--output')
     item.add_argument('--scope', choices=('full', 'plugins'), default='full')
@@ -161,17 +176,21 @@ def register(groups, network):
     item.add_argument('--sha256')
     item.add_argument('--network', action='store_true')
     item.add_argument('--panel-state', action='store_true')
-    sub = groups.add_parser('storage', help='Storage accounting and bounded cleanup').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('storage', help='磁盘占用与指定范围清理').add_subparsers(dest='action', required=True)
     flags(sub.add_parser('usage'))
     item = flags(sub.add_parser('cleanup'), mutate=True)
     item.add_argument('--scope', choices=('cache', 'workshop', 'temporary'), required=True)
-    sub = groups.add_parser('repair', help='Explicit scoped diagnostic repairs').add_subparsers(dest='action', required=True)
+    sub = groups.add_parser('repair', help='按指定范围修复资源和中断事务').add_subparsers(dest='action', required=True)
     item = flags(sub.add_parser('mission-bom'), mutate=True)
     item.add_argument('filename')
     item = flags(sub.add_parser('permissions'), mutate=True)
     item.add_argument('--scope', choices=('maps', 'missions', 'addons', 'addons_disabled'), required=True)
     flags(sub.add_parser('transaction'), mutate=True, room=False)
     flags(network.add_parser('status'), room=False)
+    item = flags(network.add_parser('probe', help='从当前电脑查询游戏 UDP，可在 Windows/Linux/macOS 使用'), room=False)
+    item.add_argument('--address', required=True)
+    item.add_argument('--port', type=int, default=27015)
+    item.add_argument('--timeout', type=positive, default=3)
     item = flags(network.add_parser('configure'), mutate=True, room=False)
     proxy = item.add_mutually_exclusive_group()
     proxy.add_argument('--proxy-file')
@@ -186,6 +205,24 @@ def register(groups, network):
     ip = item.add_mutually_exclusive_group()
     ip.add_argument('--prefer-ipv4', dest='ipv4', action='store_true', default=None)
     ip.add_argument('--reset-ipv4', dest='ipv4', action='store_false')
+    sub = groups.add_parser('access', help='Steam 身份好友名单与插件运行检查').add_subparsers(dest='action', required=True)
+    flags(sub.add_parser('status'))
+    item = flags(sub.add_parser('configure'), mutate=True)
+    item.add_argument('--mode', choices=('public', 'friends'), required=True)
+    item.add_argument('--allow-file', help='每行一个个人 SteamID64，包含服主；不使用昵称或组 ID')
+    sub = groups.add_parser('schedule', help='定时备份与健康检查').add_subparsers(dest='action', required=True)
+    flags(sub.add_parser('list'), room=False)
+    item = flags(sub.add_parser('add'), mutate=True)
+    item.add_argument('--id', required=True)
+    item.add_argument('--kind', choices=('backup', 'health'), required=True)
+    when = item.add_mutually_exclusive_group()
+    when.add_argument('--at', help='目标服务器时区的每日 HH:MM')
+    when.add_argument('--every-minutes', type=int)
+    item.add_argument('--keep', type=int, default=7, help='该备份任务保留 1–100 份，默认 7')
+    item.add_argument('--cli-path', default='/usr/local/bin/l4d2', help='root 拥有的全局 CLI 入口')
+    for action in ('remove', 'run', '_run'):
+        item = flags(sub.add_parser(action), room=False, mutate=action != '_run')
+        item.add_argument('--id', required=True)
 
 
 def dispatch(args):
@@ -199,12 +236,33 @@ def _dispatch(args):
     group, action = args.group, getattr(args, 'action', None)
     if group == 'capabilities':
         return {'contract_version': 1, 'groups': sorted(GROUPS - {'capabilities'}),
-                'network': ['check', 'status', 'configure'], 'onboarding': ['setup'], 'web_required': False,
+                'network': ['check', 'probe', 'status', 'configure'], 'onboarding': ['setup'], 'web_required': False,
+                'friends': ['room invite', 'room connect-check', 'network probe', 'map share', 'access configure', 'access status'],
+                'maintenance': ['room update', 'room health', 'schedule add', 'schedule list', 'schedule run', 'schedule remove'],
                 'optional_frontends': {'web': ['install', 'configure', 'start', 'stop', 'restart', 'status', 'check', 'logs', 'uninstall'],
                                        'skill': ['show', 'export', 'list', 'status', 'install', 'update', 'uninstall']},
                 'mutation_contract': ['dry_run', 'confirmation', 'operation_lock', 'secret_redaction']}
+    if group == 'network' and action == 'probe':
+        report = joining.probe(args.address, args.port, args.timeout)
+        if not report['query_reachable']:
+            raise CliError('当前机器未能查询到游戏。', 'query_unavailable', 4, report)
+        return report
     host.require_platform()
     options = {'dry_run': getattr(args, 'dry_run', False), 'yes': getattr(args, 'yes', False)}
+    if group == 'schedule':
+        host.require_root()
+        if action == 'list':
+            return schedules.listing()
+        if action == 'remove':
+            return schedules.remove(args.id, **options)
+        if action in {'run', '_run'}:
+            if action == 'run':
+                early = base.prepare({'action': 'run-schedule', 'id': args.id, 'kind': schedules.get(args.id)['kind']}, **options)
+                if early:
+                    return early
+            return schedules.worker(args.id)
+        return schedules.add(args.id, rooms.get(args.room), args.kind, args.at, args.every_minutes,
+                             args.keep, args.cli_path, **options)
     if group == 'task':
         host.require_root()
         if action == 'list':
@@ -283,7 +341,24 @@ def _dispatch(args):
             run(['systemctl', 'daemon-reload'])
             return {'recovered': recovered, 'systemd_reloaded': True}
     room = rooms.get(args.room)
+    if group == 'access':
+        host.require_root()
+        return access.status(room) if action == 'status' else access.configure(room, args.mode, args.allow_file, **options)
     if group == 'room':
+        if action == 'invite':
+            return joining.invite(room, args.address)
+        if action == 'connect-check':
+            report = joining.check(room, args.address)
+            if not report['healthy']:
+                raise CliError('连接诊断发现本机检查异常。', 'unhealthy', 4, report)
+            return report
+        if action == 'health':
+            report = health.check(room, args.minimum_free_gib)
+            if not report['healthy']:
+                raise CliError('健康检查发现异常。', 'unhealthy', 4, report)
+            return report
+        if action == 'update':
+            return updates.update(room, args.steamcmd_path, args.steam_user, args.steam_tcp, args.timeout, **options)
         if action == 'status':
             return rooms.status(room)
         if action == 'doctor':
@@ -304,6 +379,8 @@ def _dispatch(args):
             return rooms.refresh(args.room, **options)
         return rooms.logs(args.room, args.lines, args.since, args.follow)
     if group in {'map', 'addon'}:
+        if action == 'share':
+            return sharing.share(room, args.id, args.filename, args.offline)
         if action == 'list':
             report = content.inventory(room)
             if group == 'addon':

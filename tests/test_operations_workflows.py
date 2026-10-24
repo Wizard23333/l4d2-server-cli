@@ -188,7 +188,7 @@ class FrameworkTests(Sandbox):
 
     def test_bundled_source_assets_are_available_without_web(self):
         sources = plugins.sources()['sources']
-        self.assertEqual({item['id'] for item in sources}, {'infected_counter', 'jiangmen_changelevel_fix'})
+        self.assertEqual({item['id'] for item in sources}, {'infected_counter', 'jiangmen_changelevel_fix', 'l4d2_cli_access'})
         self.assertTrue(all(Path(item['path']).is_file() for item in sources))
 
 
