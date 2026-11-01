@@ -132,6 +132,15 @@ def format_report(data: dict, error: dict | None = None) -> str:
         lines.extend(["[警告] 存在未完成的配置事务", "  建议：用 sudo l4d2 doctor 核对状态，处理后再执行配置或启停操作。"])
 
     connection = data.get("connection") or {}
+    access = data.get('access') or {}
+    if access.get('configured'):
+        lines.extend(['', '[访问控制] ' + ('好友名单' if access.get('mode') == 'friends' else '公开或待配置'),
+                      '  插件回执：' + ('已核对' if access.get('runtime_verified') else '未核对'),
+                      '  玩家实际加入：仍需实机验收；插件回执不能代替玩家加入测试。'])
+        if not access.get('files_match'):
+            lines.append('  建议：停止共享房间并重新检查 access configure。')
+    if (data.get('update') or {}).get('status') in {'updating', 'failed', 'interrupted'}:
+        lines.extend(['[需处理] 游戏更新尚未完成', '  建议：用同一来源重跑 room update，完成后再启动。'])
     if connection:
         lines.extend(["", "[提示] 连接方式"])
         if connection.get("local_query"):

@@ -47,10 +47,10 @@ def get_source(args) -> Source:
 
 
 def parser() -> Parser:
-    root = Parser(prog="l4d2", description="Left 4 Dead 2 dedicated server operations CLI")
+    root = Parser(prog="l4d2", description="求生之路 2 开服与维护工具；新手先使用 setup，邀请好友使用 room invite")
     root.add_argument("--version", action="version", version=f"l4d2-server-cli {__version__}")
     groups = root.add_subparsers(dest="group")
-    setup = groups.add_parser("setup", help="Guided first server: preview, install, configure, start and joining instructions")
+    setup = groups.add_parser("setup", help="中文首次开服引导：预检、安装、配置、启动和加入说明")
     setup.add_argument("--dir", metavar="PATH", help="New game directory, or the registered installation to resume")
     setup.add_argument("--name", help="ASCII server name")
     setup.add_argument("--port", type=int)
@@ -63,13 +63,13 @@ def parser() -> Parser:
     setup.add_argument("--steam-tcp", action="store_true")
     source_flags(setup)
     output_flags(setup, timeout=3600, changes=True, confirmation=True)
-    doctor = groups.add_parser("doctor", help="Read-only host, network and local game diagnosis")
+    doctor = groups.add_parser("doctor", help="只读检查主机、下载网络与本机游戏")
     output_flags(doctor)
-    net = groups.add_parser("network", help="Installation network preflight").add_subparsers(dest="action", required=True)
+    net = groups.add_parser("network", help="下载网络检查与好友连接查询").add_subparsers(dest="action", required=True)
     check = net.add_parser("check", help="Probe only the network paths needed by the selected source")
     source_flags(check)
     output_flags(check, timeout=30)
-    download = groups.add_parser("download", help="Prepare local installation inputs").add_subparsers(dest="action", required=True)
+    download = groups.add_parser("download", help="准备安装工具或完整游戏包").add_subparsers(dest="action", required=True)
     archive = download.add_parser("steamcmd", help="Download the official Linux SteamCMD bootstrap archive")
     archive.add_argument("--output", required=True, metavar="FILE")
     output_flags(archive, timeout=300)
@@ -80,7 +80,7 @@ def parser() -> Parser:
     bundle_sources = source_flags(bundle, server=False)
     bundle_sources.add_argument("--qr-cache", metavar="DIR", help="Private verified DepotDownloader QR cache (separate from SteamCMD)")
     output_flags(bundle, timeout=3600, confirmation=True)
-    authentication = groups.add_parser("auth", help="Prepare a private native SteamCMD login").add_subparsers(dest="action", required=True)
+    authentication = groups.add_parser("auth", help="Steam 登录与私有认证缓存").add_subparsers(dest="action", required=True)
     login = authentication.add_parser("login", help="Interactive account login and cached-login verification; normal user only")
     login.add_argument("--method", choices=("password", "qr"), default="password", help="Password via SteamCMD (default), or QR via optional DepotDownloader")
     login.add_argument("--depotdownloader-path", metavar="PATH", help="Trusted self-contained Linux x64 DepotDownloader executable, for QR only")
@@ -90,7 +90,7 @@ def parser() -> Parser:
     login.add_argument("--steam-tcp", action="store_true", help="Use SteamCMD -tcp; does not configure proxy routing")
     login.add_argument("--timeout", type=positive, default=300, metavar="SECONDS", help="Total login preparation budget (default 300s)")
     source_flags(login, server=False)
-    server = groups.add_parser("server", help="Manage the registered main server").add_subparsers(dest="action", required=True)
+    server = groups.add_parser("server", help="主房间 main 的安装、配置和运行").add_subparsers(dest="action", required=True)
     install = server.add_parser("install", help="Install vanilla server; leave it stopped")
     install.add_argument("--dir", metavar="PATH", help="Game directory (first install defaults to /opt/l4d2)")
     install.add_argument("--steam-user", default="anonymous", help="Steam login name for an existing cached authorized login")
@@ -305,6 +305,10 @@ def _main(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if os.name == 'nt':
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, 'reconfigure'):
+                stream.reconfigure(encoding='utf-8', errors='replace')
     arguments = list(sys.argv[1:] if argv is None else argv)
     confirmation_context = JSON_CONFIRMATION.set('--json' in arguments)
     try:

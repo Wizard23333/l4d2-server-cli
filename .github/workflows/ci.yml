@@ -54,6 +54,20 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Offline regressions (no Steam account or server mutation)
         run: python -B -m unittest discover -s tests -v
+      - name: Compile the friends access plugin with verified official SourceMod SDK
+        if: matrix.os == 'windows-2022' && matrix.python == '3.12'
+        shell: pwsh
+        run: |
+          $sdkArchive = Join-Path $env:RUNNER_TEMP 'sourcemod-sdk.zip'
+          $sdkFolder = Join-Path $env:RUNNER_TEMP 'sourcemod-sdk'
+          Invoke-WebRequest 'https://sm.alliedmods.net/smdrop/1.12/sourcemod-1.12.0-git7257-windows.zip' -OutFile $sdkArchive
+          if ((Get-FileHash $sdkArchive -Algorithm SHA256).Hash -ne '0EA889F76AA62228B100E4FB86A88A92189E4D94740D485DFD8748782F6E0BC3') { throw 'SourceMod SDK checksum mismatch' }
+          Expand-Archive -LiteralPath $sdkArchive -DestinationPath $sdkFolder
+          $compiler = Join-Path $sdkFolder 'addons/sourcemod/scripting/spcomp64.exe'
+          $includes = Join-Path $sdkFolder 'addons/sourcemod/scripting/include'
+          $compiled = Join-Path $env:RUNNER_TEMP 'l4d2_cli_access.smx'
+          & $compiler src/l4d2_cli/ops/assets/l4d2_cli_access.sp -i $includes -o $compiled
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $compiled)) { throw 'Access plugin compilation failed' }
       - name: Public source checks
         run: python -B scripts/check_release.py
 

@@ -13,7 +13,7 @@ from .. import storage
 from ..common import CliError, run
 from . import base, content, rooms, transport
 
-PROTECTED = {'left4dhooks.smx'}
+PROTECTED = {'left4dhooks.smx', 'l4d2_cli_access.smx'}
 UNSAFE_DEFAULTS = {'mapchooser.smx', 'nominations.smx', 'rockthevote.smx', 'nextmap.smx', 'randomcycle.smx',
                    'advertisements.smx', 'l4d_kill.smx', 'sql-admin-manager.smx',
                    'admin-sql-prefetch.smx', 'admin-sql-threaded.smx'}

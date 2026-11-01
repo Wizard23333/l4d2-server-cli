@@ -42,7 +42,10 @@ def main():
         environment.pop(key, None)
     commands = [[], ["setup"], ["server", "install"], ["server", "configure"], ["server", "start"],
                 ["server", "stop"], ["server", "restart"], ["server", "status"], ["server", "logs"],
-                ["doctor"], ["network", "check"], ["download", "steamcmd"], ["download", "server"], ["auth", "login"]]
+                ["doctor"], ["network", "check"], ["download", "steamcmd"], ["download", "server"], ["auth", "login"],
+                ["room", "invite"], ["room", "connect-check"], ["room", "update"], ["room", "health"],
+                ["map", "share"], ["network", "probe"], ["access", "configure"], ["access", "status"],
+                ["schedule", "add"], ["schedule", "run"], ["schedule", "list"], ["schedule", "remove"]]
     result = subprocess.run([str(cli), "--version"], cwd="/tmp", env=environment,
                             check=True, stdout=subprocess.PIPE, text=True, timeout=20)
     if result.stdout.strip() != "l4d2-server-cli " + version:

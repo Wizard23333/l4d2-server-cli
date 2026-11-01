@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .ops.output import COMMANDS as READABLE_OPERATIONS
+
 
 class CliError(Exception):
     def __init__(self, message: str, code: str = "operation_failed", exit_code: int = 1, details: dict | None = None):
@@ -69,6 +71,11 @@ def result(command: str, data: dict, *, as_json: bool = False,
     })
     if as_json:
         print(json.dumps(payload, ensure_ascii=False))
+    elif command in READABLE_OPERATIONS:
+        from .ops.output import format_report
+        print(format_report(command, payload['data'], payload['error']))
+        for warning in payload['warnings']:
+            progress('注意：' + warning)
     elif command in {"l4d2 setup", "l4d2 doctor", "l4d2 network check", "l4d2 server status"}:
         if command == "l4d2 setup":
             from .onboarding import format_report
@@ -96,7 +103,7 @@ def confirm(message: str, yes: bool = False, *, as_json: bool = False) -> None:
         return
     if as_json or JSON_CONFIRMATION.get() or not sys.stdin.isatty():
         raise CliError("Confirmation required; review the plan then use --yes.", "confirmation_required", 5)
-    if input("Continue? [y/N] ").strip().lower() not in {"y", "yes"}:
+    if input("确认继续？[y/N] ").strip().lower() not in {"y", "yes"}:
         raise CliError("Operation cancelled.", "declined", 5)
 
 

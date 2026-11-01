@@ -18,7 +18,7 @@ from ..common import CliError, REDACTOR
 from . import base
 
 ALLOWED = {'server', 'download', 'network', 'room', 'map', 'addon', 'plugin', 'transfer', 'backup',
-           'admin', 'repair', 'storage', 'rcon'}
+           'admin', 'repair', 'storage', 'rcon', 'access', 'schedule'}
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'interrupted'}
 SERVICE_WORKERS = contextvars.ContextVar('l4d2_service_workers', default=False)
 

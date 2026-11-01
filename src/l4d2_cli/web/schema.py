@@ -8,7 +8,7 @@ from ..common import CliError
 # Interactive authentication and bootstrap are terminal workflows. Everything in
 # the registered server's operations contract is available in the browser.
 GROUPS = {'room', 'map', 'addon', 'plugin', 'admin', 'rcon', 'task', 'transfer',
-          'backup', 'storage', 'repair', 'network', 'capabilities', 'server', 'doctor'}
+          'backup', 'storage', 'repair', 'network', 'capabilities', 'server', 'doctor', 'access', 'schedule'}
 HIDDEN = {'_run', '_bridge', '_serve', 'install'}
 CONTROL = {'help', 'json', 'yes', 'dry_run'}
 
@@ -52,7 +52,7 @@ def commands():
     return found
 
 
-FILE_FIELDS = {'file', 'rcon_password_file', 'proxy_file', 'steam_api_key_file',
+FILE_FIELDS = {'file', 'rcon_password_file', 'proxy_file', 'steam_api_key_file', 'allow_file',
                'hosts_file', 'command_file', 'metamod_archive', 'sourcemod_archive'}
 
 

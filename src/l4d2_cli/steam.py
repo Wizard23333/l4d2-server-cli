@@ -133,7 +133,8 @@ def content_failure(code: str, steam_user: str, *, timed_out: bool = False) -> C
 
 
 def download_game(tool: Path, game_dir: Path, timeout: float, *, game_user: bool = True,
-                  home: Path | None = None, steam_user: str = "anonymous", steam_tcp: bool = False) -> dict:
+                  home: Path | None = None, steam_user: str = "anonymous", steam_tcp: bool = False,
+                  run_user: str | None = None) -> dict:
     validate_login_name(steam_user)
     if steam_user != "anonymous":
         from .common import REDACTOR
@@ -145,7 +146,12 @@ def download_game(tool: Path, game_dir: Path, timeout: float, *, game_user: bool
             "+app_update", str(APP_ID), "validate", "+quit"]
     environment = os.environ.copy()
     environment["HOME"] = str(home or tool.parent)
-    if game_user:
+    if run_user:
+        import re
+        if not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', run_user):
+            raise CliError('Invalid game service account.', 'unsafe_game_user', 4)
+        args = ['runuser', '-u', run_user, '--', 'env', f'HOME={home or tool.parent}', *args]
+    elif game_user:
         args, environment = host.as_game_user(args, home or tool.parent)
     progress("SteamCMD phase: bootstrap/update -> login -> official dedicated content. HTTP proxy is not proof of Steam routing.")
     for attempt in range(1, 4):

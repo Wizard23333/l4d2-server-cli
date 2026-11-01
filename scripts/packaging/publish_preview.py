@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
+import uuid
 
 from release_metadata import basename, release_notes, validate_tag
 
@@ -27,7 +29,10 @@ def verify_assets(release, expected):
 
 
 def find_release(repository, tag):
-    pages = json.loads(gh("api", "--paginate", "--slurp", "repos/" + repository + "/releases?per_page=100"))
+    # GitHub/intermediary list caches can lag behind draft writes. Each verification
+    # must observe a fresh response, especially before deciding to create a draft.
+    endpoint = "repos/" + repository + "/releases?per_page=100&l4d2_read=" + uuid.uuid4().hex
+    pages = json.loads(gh("api", "--paginate", "--slurp", "--header", "Cache-Control: no-cache", endpoint))
     found = [release for page in pages for release in page if release["tag_name"] == tag]
     if len(found) > 1:
         raise ValueError("Multiple releases with the same tag.")
@@ -68,9 +73,16 @@ def main():
             notes.write_text(release_notes(args.tag, repository) + "\n\n" + marker + "\n", encoding="utf-8")
             gh("release", "create", args.tag, "--repo", repository, "--verify-tag", "--draft", "--prerelease",
                "--latest=false", "--target", commit, "--title", args.tag, "--notes-file", str(notes))
-        release = find_release(repository, args.tag)
+        for attempt in range(5):
+            release = find_release(repository, args.tag)
+            if release:
+                break
+            if attempt < 4:
+                time.sleep(2)
     if not release:
         raise ValueError("Preview draft not found after creation.")
+    if marker not in (release.get('body') or '') or not release.get('prerelease'):
+        raise ValueError("Created draft ownership could not be verified; it will not be modified.")
     present = {asset["name"]: asset for asset in release["assets"]}
     if set(present) - set(expected):
         raise ValueError("Unexpected existing draft attachment; refusing to publish it.")

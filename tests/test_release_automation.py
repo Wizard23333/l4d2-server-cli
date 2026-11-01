@@ -22,6 +22,17 @@ import publish_preview as publish
 
 
 class ReleaseAutomationTests(unittest.TestCase):
+    def test_release_lookup_refreshes_cache_without_losing_duplicate_protection(self):
+        release = {'tag_name': 'v0.1.0-alpha.3'}
+        with patch.object(publish, 'gh', return_value=json.dumps([[release]])) as api:
+            self.assertEqual(publish.find_release('example/project', 'v0.1.0-alpha.3'), release)
+            publish.find_release('example/project', 'v0.1.0-alpha.3')
+            endpoints = [call.args[-1] for call in api.call_args_list]
+            self.assertNotEqual(endpoints[0], endpoints[1])
+            self.assertIn('Cache-Control: no-cache', api.call_args.args)
+        with patch.object(publish, 'gh', return_value=json.dumps([[release, release]])):
+            with self.assertRaisesRegex(ValueError, 'Multiple releases'):
+                publish.find_release('example/project', 'v0.1.0-alpha.3')
     def test_preview_tag_roundtrip_for_supported_channels(self):
         for version, tag in [("0.1.0a2", "v0.1.0-alpha.2"), ("1.2.3b12", "v1.2.3-beta.12"),
                              ("2.0.0rc1", "v2.0.0-rc.1")]:
@@ -140,7 +151,8 @@ class ReleaseAutomationTests(unittest.TestCase):
             remote_assets = [{"name": path.name, "state": "uploaded",
                               "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()}
                              for path in [archive, checksum]]
-            draft = {"assets": [], "draft": True, "prerelease": True}
+            draft = {"assets": [], "draft": True, "prerelease": True,
+                     "body": "<!-- l4d2-cli-preview commit=" + commit + " -->"}
             complete = {**draft, "assets": remote_assets}
             published = {**complete, "draft": False, "html_url": "https://example.invalid/preview"}
             writes = []
@@ -165,9 +177,11 @@ class ReleaseAutomationTests(unittest.TestCase):
                     patch.object(sys, "argv", ["publish_preview", "--tag", tag, "--assets", str(assets)]), \
                     patch.object(publish.subprocess, "check_output", return_value=commit + "\n"), \
                     patch.object(publish, "gh", side_effect=api), \
-                    patch.object(publish, "find_release", side_effect=[None, draft, complete]), \
+                    patch.object(publish, "find_release", side_effect=[None, None, draft, complete]), \
+                    patch.object(publish.time, 'sleep') as wait, \
                     redirect_stdout(io.StringIO()):
                 publish.main()
+                wait.assert_called_once_with(2)
             self.assertEqual(writes, [("release", "create"), ("release", "upload"),
                                       ("release", "upload"), ("release", "edit")])
 
