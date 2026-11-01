@@ -454,7 +454,7 @@ export default function App() {
   const [selectedPackages, setSelectedPackages] = useState<Set<string>>(new Set());
   const [selectedManifest, setSelectedManifest] = useState<Set<string>>(new Set());
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const timer = useRef<number | undefined>();
+  const timer = useRef<number | undefined>(undefined);
   const toastSeq = useRef(0);
 
   useEffect(() => {
@@ -1982,7 +1982,7 @@ function RowMenu({ children }: { children: ReactNode }) {
   );
 }
 
-function FileField({ inputRef, accept, label = "Choose file", onChange, multiple, onChangeFiles }: { inputRef: RefObject<HTMLInputElement>; accept?: string; label?: string; onChange?: (size: number) => void; multiple?: boolean; onChangeFiles?: (files: File[]) => void }) {
+function FileField({ inputRef, accept, label = "Choose file", onChange, multiple, onChangeFiles }: { inputRef: RefObject<HTMLInputElement | null>; accept?: string; label?: string; onChange?: (size: number) => void; multiple?: boolean; onChangeFiles?: (files: File[]) => void }) {
   const [name, setName] = useState("");
   return (
     <label className="file-field">
