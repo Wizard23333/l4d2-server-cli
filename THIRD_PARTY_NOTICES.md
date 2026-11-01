@@ -18,7 +18,7 @@ The catalog/mission parsing and bundled SourcePawn sources in `src/l4d2_cli/ops/
 
 The optional React frontend is derived from L4D2-Server-Manager-Skill's `frontend-redesign` branch at commit `6d4817f`, Copyright (c) 2026 Wizard23333 (MIT). Source provenance is recorded in `web/frontend/UPSTREAM.json`. It is adapted to the CLI operations contract; the old privileged helper and web business logic are not bundled.
 
-The browser bundle includes React 18.2.0, ReactDOM 18.2.0 and Scheduler 0.23.0, Copyright (c) Meta Platforms, Inc. and affiliates, under MIT. Complete upstream notices are retained in `src/l4d2_cli/web/licenses/`. TypeScript, Vite and build plugins are development tools and are not runtime Python dependencies. The web frontend uses local assets and system font fallbacks.
+The browser bundle includes React 19.3.1, ReactDOM 19.3.1 and Scheduler 0.28.0, Copyright (c) Meta Platforms, Inc. and affiliates, under MIT. Complete upstream notices are retained in `src/l4d2_cli/web/licenses/`. TypeScript, Vite and build plugins are development tools and are not runtime Python dependencies. The web frontend uses local assets and system font fallbacks.
 
 ## Optional external QR backend
 
