@@ -92,7 +92,7 @@ sudo python3 scripts/acceptance/web_panel.py \
 
 默认进行只读验收。追加 `--mutations` 明确授权在指定隔离房间安装和清理合成资源，验证上传、任务、地图/Mod 启停、默认图保护、管理员及 ZIP 回导；合成 BSP 仅用于文件操作验收，不作为可玩地图。游戏启停、真实地图切换、插件加载、备份恢复及浏览器渲染另外按实际环境验收。
 
-前端开发源码在 `web/frontend/`：
+前端开发源码在 `web/frontend/`，构建需要 Node.js 20.19+ 或 22.12+（建议使用受支持的 LTS 版本）：
 
 ```bash
 cd web/frontend
